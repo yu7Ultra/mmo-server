@@ -1,0 +1,23 @@
+# This file ignores files and directories that should not be included in the Docker image.
+# It helps to keep the image small and build times fast.
+
+# Node.js
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build output
+build
+
+# Docker
+Dockerfile
+
+# Kubernetes
+k8s/
+
+# Misc
+.git
+.gitignore
+.vscode
+README.md
+MINIPLEX_DOCS_CN.md

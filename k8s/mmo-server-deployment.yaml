@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mmo-server-deployment
+spec:
+  replicas: 3 # Start with 3 pods, you can scale this
+  selector:
+    matchLabels:
+      app: mmo-server
+  template:
+    metadata:
+      labels:
+        app: mmo-server
+    spec:
+      containers:
+      - name: mmo-server
+        image: your-docker-repo/danmuxiuxian-momo:latest # <-- IMPORTANT: Change this to your image name
+        ports:
+        - containerPort: 2567
+        env:
+        - name: REDIS_URL
+          value: "redis://redis-service:6379" # Points to the Redis service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mmo-server-service
+spec:
+  selector:
+    app: mmo-server
+  ports:
+    - protocol: TCP
+      port: 2567
+      targetPort: 2567
+  type: LoadBalancer # Use LoadBalancer for local testing (e.g., with Minikube)
