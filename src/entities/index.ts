@@ -1,4 +1,3 @@
-import { Client } from '@colyseus/core';
 import { Player } from '../schemas/MyRoomState';
 
 export type Entity = {
@@ -7,5 +6,12 @@ export type Entity = {
   position: { x: number; y: number };
   velocity: { x: number; y: number };
   player: Player;
-  client: Client;
+  sessionId: string;
 };
+
+
+export type Command = {
+  x: number;
+  y: number;
+  sessionId: string;
+}

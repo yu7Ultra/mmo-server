@@ -1,14 +1,21 @@
 import { Client, Room } from '@colyseus/core';
 import { World } from 'miniplex';
-import { Entity } from '../entities';
+import { Command, Entity } from '../entities';
+import { recordMessage, recordPatch, recordSlowTick, recordTick, registerRoom, unregisterRoom, updateAutoProfile, updateClients } from '../instrumentation/metrics';
 import { MyRoomState, Player } from '../schemas/MyRoomState';
+import { inputSystem } from '../systems/inputSystem';
 import { movementSystem } from '../systems/movementSystem';
 import { syncSystem } from '../systems/syncSystem';
-import { registerRoom, unregisterRoom, recordTick, recordMessage, updateClients } from '../instrumentation/metrics';
-import { recordPatch } from '../instrumentation/metrics';
+
 
 export class MyRoom extends Room<MyRoomState> {
+
   private world = new World<Entity>();
+
+  private entityByClient = new Map<string, Entity>();
+
+  private entityCommandMap: Map<string, Command> = new Map();
+
 
   onCreate(options: any) {
     this.state = new MyRoomState();
@@ -28,23 +35,45 @@ export class MyRoom extends Room<MyRoomState> {
         return originalBroadcastPatch.apply(this, args);
       }
     };
+    const slowThreshold = Number(process.env.PERF_SLOW_TICK_MS || 20); // ms
+    const autoProfileCooldownMs = Number(process.env.PERF_AUTO_PROFILE_COOLDOWN_MS || 60000); // default 60s
+    let lastAutoProfileAt = 0;
     this.setSimulationInterval(() => {
       const start = Date.now();
+
+      inputSystem(this.world, this.entityCommandMap, this.entityByClient);
       movementSystem(this.world);
       syncSystem(this.world);
       const end = Date.now();
-      recordTick(this.roomId, end - start);
+      const duration = end - start;
+      recordTick(this.roomId, duration);
+      if (duration > slowThreshold) {
+        recordSlowTick(this.roomId, duration, slowThreshold);
+        const now = Date.now();
+        if (now - lastAutoProfileAt > autoProfileCooldownMs) {
+          // Fire and forget 1s CPU profile
+          import('../instrumentation/profiler').then(mod => {
+            mod.captureCPUProfile(1000).then(file => {
+              updateAutoProfile(this.roomId, file);
+              console.warn(`[perf] auto CPU profile captured for room ${this.roomId}: ${file}`);
+            }).catch(err => console.error('[perf] auto profile error', err));
+          }).catch(err => console.error('[perf] profiler import error', err));
+          lastAutoProfileAt = now;
+        }
+      }
       updateClients(this.roomId, this.clients.length);
       lastTickTime = end;
-    });
+    }, 1000 / 10); // 20 TPS
 
     this.onMessage("move", (client, message: { x: number; y: number }) => {
       recordMessage(this.roomId, 'move');
-      const entity = this.world.where((e) => e.client.sessionId === client.sessionId).first;
-      if (entity) {
-        entity.velocity.x = message.x;
-        entity.velocity.y = message.y;
-      }
+      this.entityCommandMap.set(client.sessionId, { sessionId: client.sessionId, x: message.x, y: message.y });
+      // const entity = this.world.where((e) => e.sessionId === client.sessionId).first;
+      // if (entity) {
+      //   // entity.velocity.x = message.x;
+      //   // entity.velocity.y = message.y;
+      //   this.world.update(entity, { velocity: { x: message.x, y: message.y } });
+      // }
     });
   }
 
@@ -54,12 +83,14 @@ export class MyRoom extends Room<MyRoomState> {
     const player = new Player();
     this.state.players.set(client.sessionId, player);
 
-    this.world.add({
-      client: client,
+    let entity = this.world.add({
+      sessionId: client.sessionId,
       player: player,
       position: { x: player.x, y: player.y },
       velocity: { x: 0, y: 0 },
     });
+
+    this.entityByClient.set(client.sessionId, entity);
   }
 
   onLeave(client: Client, consented: boolean) {
@@ -67,10 +98,12 @@ export class MyRoom extends Room<MyRoomState> {
 
     this.state.players.delete(client.sessionId);
 
-    const entity = this.world.where((e) => e.client.sessionId === client.sessionId).first;
+    const entity = this.world.where((e) => e.sessionId === client.sessionId).first;
     if (entity) {
       this.world.remove(entity);
+      console.log('Removed entity for', client.sessionId);
     }
+    this.entityByClient.delete(client.sessionId);
   }
 
   onDispose() {
