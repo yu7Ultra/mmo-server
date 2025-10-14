@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "Node",
+    "outDir": "dist-mock",
+    "types": ["node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": false,
+    "useDefineForClassFields": false
+  },
+  "include": [
+    "src/command/mockClient.ts",
+    "src/command/botClients.ts",
+    "src/command/spawn-mock.ts",
+    "src/states/**/*.ts"
+  ]
+}

@@ -1,14 +1,14 @@
-import { ConfigOptions, listen } from "@colyseus/tools";
 import { Server } from '@colyseus/core';
-import { RedisPresence } from '@colyseus/redis-presence';
-import { RedisDriver } from '@colyseus/redis-driver';
-import { uWebSocketsTransport } from '@colyseus/uwebsockets-transport';
-import { MyRoom } from './rooms/MyRoom';
 import { monitor } from '@colyseus/monitor';
 import { playground } from '@colyseus/playground';
-import express from 'express';
+import { ConfigOptions } from "@colyseus/tools";
+import { uWebSocketsTransport } from '@colyseus/uwebsockets-transport';
 import dotenv from 'dotenv';
+import express from 'express';
 import path from 'path';
+import { MyRoom } from './rooms/MyRoom';
+import { collectAllMetrics, toPrometheusText } from './instrumentation/metrics';
+import { captureCPUProfile, listProfiles, captureHeapSnapshot } from './instrumentation/profiler';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -20,10 +20,10 @@ const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
 const config: ConfigOptions = {
     options: {
-        presence: new RedisPresence(redisUrl),
-        driver: new RedisDriver(redisUrl),
+        // presence: new RedisPresence(redisUrl),
+        // driver: new RedisDriver(redisUrl),
     },
-    initializeTransport(){
+    initializeTransport() {
         return new uWebSocketsTransport();
     },
     initializeGameServer: (gameServer: Server) => {
@@ -36,12 +36,67 @@ const config: ConfigOptions = {
         // Serve the frontend
         app.use(express.static(path.join(process.cwd(), "client", "dist")));
 
+        // Metrics endpoints
+        app.get('/metrics.json', (req, res) => {
+            res.json(collectAllMetrics());
+        });
+        app.get('/metrics', (req, res) => {
+            res.setHeader('Content-Type', 'text/plain');
+            res.send(toPrometheusText());
+        });
+
+        // CPU profiling endpoint (POST /profile/cpu?durationMs=5000)
+        app.post('/profile/cpu', async (req, res) => {
+            const durationMs = Number(req.query.durationMs || 5000);
+            try {
+                const filePath = await captureCPUProfile(durationMs);
+                res.json({ status: 'ok', file: filePath });
+            } catch (err: any) {
+                res.status(500).json({ status: 'error', message: err.message });
+            }
+        });
+        // GET convenience (defaults 5000ms)
+        app.get('/profile/cpu', async (req, res) => {
+            const durationMs = Number(req.query.durationMs || 5000);
+            try {
+                const filePath = await captureCPUProfile(durationMs);
+                res.json({ status: 'ok', file: filePath });
+            } catch (err: any) {
+                res.status(500).json({ status: 'error', message: err.message });
+            }
+        });
+
+        // Heap snapshot endpoint
+        app.post('/profile/heap', async (req, res) => {
+            try {
+                const filePath = await captureHeapSnapshot();
+                res.json({ status: 'ok', file: filePath });
+            } catch (err: any) {
+                res.status(500).json({ status: 'error', message: err.message });
+            }
+        });
+        app.get('/profile/heap', async (req, res) => {
+            try {
+                const filePath = await captureHeapSnapshot();
+                res.json({ status: 'ok', file: filePath });
+            } catch (err: any) {
+                res.status(500).json({ status: 'error', message: err.message });
+            }
+        });
+
+        // List collected profiles
+        app.get('/profile/list', (req, res) => {
+            res.json({ files: listProfiles() });
+        });
+
         // Register the monitoring panel only in development
         if (process.env.NODE_ENV === 'development') {
             app.use('/colyseus', monitor());
             app.use('/playground', playground());
             console.log(`Monitoring panel is available at http://localhost:${port}/colyseus`);
             console.log(`Playground is available at http://localhost:${port}/playground`);
+            console.log(`Metrics JSON available at http://localhost:${port}/metrics.json`);
+            console.log(`Metrics Prometheus available at http://localhost:${port}/metrics`);
         }
     },
 

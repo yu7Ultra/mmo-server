@@ -1,24 +1,128 @@
 # Colyseus MMO Server
 
-This is a basic setup for a Colyseus cluster MMO server.
+Production-ready Colyseus clustered MMO server (TypeScript) with ECS, uWebSockets transport, Redis-ready configuration, custom performance metrics, and testing setup.
 
 ## Installation
 
-1. Ensure you have Node.js and npm installed.
-2. Install dependencies: `npm install`
+1. Ensure you have Node.js installed.
+2. Install dependencies: `yarn install`
 
 ## Running the Server
 
-`npm start`
+`yarn start`
 
 The server will start on port 2567.
 
 ## Development
 
-- Rooms are defined in the `rooms/` directory.
-- For clustering, you may need to run multiple instances and configure Redis for pub/sub.
+-- Rooms are defined in the `src/rooms/` directory.
+-- Schema definitions are in `src/schemas/`.
+-- ECS entities & systems live under `src/entities/` and `src/systems/`.
+-- Custom metrics instrumentation in `src/instrumentation/metrics.ts`.
+-- Frontend client (Vite + Pixi.js) in `client/` built into `client/dist`.
+-- Load testing / mock clients in `client/src/command/`.
+
+### Custom Metrics
+
+Two endpoints are exposed by the Express integration:
+
+1. `GET /metrics.json` - Structured JSON snapshot:
+```json
+{
+	"process": { "pid": 12345, "uptimeSeconds": 42, "memory": { "rss": 12345678 } },
+	"aggregate": { "roomCount": 1, "totalClients": 10, "totalMessages": 120, "totalPatches": 240 },
+	"rooms": [
+		{
+			"roomId": "my_room_id",
+			"clients": 10,
+			"tickCount": 840,
+			"tickAvgMs": 2.3,
+			"tickP99Ms": 5.7,
+			"messagesReceived": 120,
+			"moveMessages": 100,
+			"patchesSent": 240,
+			"bytesEstimate": 40960
+		}
+	]
+}
+```
+
+2. `GET /metrics` - Prometheus exposition format (scrape with Prometheus):
+```
+# HELP colyseus_event_loop_lag_ms event loop lag
+# TYPE colyseus_event_loop_lag_ms gauge
+colyseus_event_loop_lag_ms 1.23
+colyseus_room_count 1
+colyseus_room_clients{roomId="my_room_id"} 10
+colyseus_room_tick_avg_ms{roomId="my_room_id"} 2.3
+...
+```
+
+Add to Prometheus config:
+```
+scrape_configs:
+	- job_name: colyseus
+		static_configs:
+			- targets: ['your-host:2567']
+		metrics_path: /metrics
+```
+
+### Testing
+
+Run test suite: `yarn test`
+
+### Development Loop
+
+Use live reload via: `yarn dev`
+
+### Load Testing
+
+Spawn headless mock clients (adjust count):
+```
+node client/dist/command/spawn-mock.js --count 200 --interval 1000
+```
+
+### Future Enhancements
+
+-- Optional Prometheus `prom-client` integration (replace manual text builder).
+-- OpenTelemetry spans for tick & broadcast phases.
+-- Redis presence/driver activation for horizontal scaling.
+
+### Profiling (Flame Graph / 火焰图)
+
+Trigger a CPU profile via HTTP (默认 5 秒):
+```
+curl -X POST "http://localhost:2567/profile/cpu?durationMs=5000"
+```
+返回 JSON 中包含生成的 `.cpuprofile` 文件路径 (位于 `profiles/`).
+
+抓取堆快照:
+```
+curl -X POST http://localhost:2567/profile/heap
+```
+
+列出已有文件:
+```
+curl http://localhost:2567/profile/list
+```
+
+本地命令行方式生成 CPU Profile (设置时长毫秒):
+```
+yarn build
+D=10000 yarn profile:cpu
+```
+
+查看火焰图的方法:
+1. 打开 Chrome DevTools -> Performance -> Load profile -> 选择生成的 `.cpuprofile` 文件。
+2. 或使用 https://www.speedscope.app 加载 `.cpuprofile` / `.json` 文件获得交互式火焰图。
+
+建议流程:
+1. 在压测启动后 30 秒触发一次 10 秒 CPU Profile。
+2. 对比多次 Profile，关注: `movementSystem`, `syncSystem`, 序列化热点 (patch broadcast), GC pauses。
+
+如需自动化，可以在负载脚本中定时调用 `/profile/cpu` 并将结果上传到对象存储或日志系统。
 
 ## Notes
 
-- This is a starting point. Customize the room logic in `rooms/MyRoom.js` for your MMO game.
-- For production clustering, refer to Colyseus documentation on scaling.
+Customize logic in `src/rooms/MyRoom.ts` and systems under `src/systems/`.
+Refer to Colyseus docs for clustering (enable Redis presence/driver in `app.config.ts`).

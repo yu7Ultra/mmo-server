@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es6",
+    "target": "ES2020",
     "module": "commonjs",
     "outDir": "./build",
     "rootDir": "./src",
@@ -18,7 +18,6 @@
     "src/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "src/test"
+    "node_modules"
   ]
 }

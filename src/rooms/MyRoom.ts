@@ -1,22 +1,45 @@
-import { Room, Client } from '@colyseus/core';
+import { Client, Room } from '@colyseus/core';
 import { World } from 'miniplex';
-import { MyRoomState, Player } from '../schemas/MyRoomState';
 import { Entity } from '../entities';
+import { MyRoomState, Player } from '../schemas/MyRoomState';
 import { movementSystem } from '../systems/movementSystem';
 import { syncSystem } from '../systems/syncSystem';
+import { registerRoom, unregisterRoom, recordTick, recordMessage, updateClients } from '../instrumentation/metrics';
+import { recordPatch } from '../instrumentation/metrics';
 
 export class MyRoom extends Room<MyRoomState> {
   private world = new World<Entity>();
 
   onCreate(options: any) {
-    this.setState(new MyRoomState());
-
-    this.setSimulationInterval((deltaTime: number) => {
+    this.state = new MyRoomState();
+    registerRoom(this.roomId);
+    let lastTickTime = Date.now();
+    // Wrap broadcastPatch to record patch metrics
+    const originalBroadcastPatch = (this as any).broadcastPatch;
+    (this as any).broadcastPatch = (...args: any[]) => {
+      try {
+        const before = Date.now();
+        const result = originalBroadcastPatch.apply(this, args);
+        const after = Date.now();
+        // We don't have direct patch bytes, approximate with duration * clients
+        recordPatch(this.roomId, (after - before) * this.clients.length);
+        return result;
+      } catch (err) {
+        return originalBroadcastPatch.apply(this, args);
+      }
+    };
+    this.setSimulationInterval(() => {
+      const start = Date.now();
       movementSystem(this.world);
       syncSystem(this.world);
+      const end = Date.now();
+      recordTick(this.roomId, end - start);
+      updateClients(this.roomId, this.clients.length);
+      lastTickTime = end;
     });
 
-    this.onMessage("move", (client, message) => {
+    this.onMessage("move", (client, message: { x: number; y: number }) => {
+      recordMessage(this.roomId, 'move');
       const entity = this.world.where((e) => e.client.sessionId === client.sessionId).first;
       if (entity) {
         entity.velocity.x = message.x;
@@ -52,5 +75,6 @@ export class MyRoom extends Room<MyRoomState> {
 
   onDispose() {
     console.log('room', this.roomId, 'disposing...');
+    unregisterRoom(this.roomId);
   }
 }

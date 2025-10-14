@@ -6,7 +6,9 @@
     "start": "node build/index.js",
     "dev": "tsc-watch --onSuccess \"node build/index.js\"",
     "build": "tsc",
-    "test": "jest"
+    "test": "jest",
+    "schema-codegen": "npx schema-codegen src/schemas/* --ts --output client/src/states/"
+  ,"profile:cpu": "node -e \"(async()=>{const {captureCPUProfile}=require('./build/instrumentation/profiler');const d=process.env.D||5000;const f=await captureCPUProfile(d);console.log('CPU profile saved:',f)})()\""
   },
   "keywords": [],
   "author": "",
@@ -20,7 +22,7 @@
     "@colyseus/playground": "^0.16.0",
     "@colyseus/redis-driver": "^0.16.0",
     "@colyseus/redis-presence": "^0.16.0",
-    "@colyseus/schema": "^3.0.0",
+    "@colyseus/schema": "^3.0.61",
     "@colyseus/uwebsockets-transport": "^0.16.0",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
@@ -34,7 +36,9 @@
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.5.2",
+    "@types/supertest": "^6.0.3",
     "jest": "^30.2.0",
+    "supertest": "^7.1.4",
     "ts-jest": "^29.4.4",
     "tsc-watch": "^7.2.0",
     "typescript": "^5.9.2"
