@@ -13,6 +13,7 @@ import { movementSystem } from '../systems/movementSystem';
 import { abandonQuest, grantQuest, initializeStarterQuests, questSystem, updateQuestProgress } from '../systems/questSystem';
 import { buffSystem, initializeDefaultSkills, skillSystem, useSkill } from '../systems/skillSystem';
 import { syncSystem } from '../systems/syncSystem';
+import { VoiceChannelManager } from '../systems/voiceChannelSystem';
 import { RateLimiter, InputValidator } from '../utils/security';
 
 
@@ -27,12 +28,17 @@ export class MyRoom extends Room<MyRoomState> {
   // New systems
   private leaderboardManager = new LeaderboardManager();
   private chatManager = new ChatManager();
+  private voiceChannelManager = new VoiceChannelManager();
   private actionRateLimiter = new RateLimiter(20, 5); // 20 actions, 5 per second
   private chatRateLimiter = new RateLimiter(10, 1); // 10 messages, 1 per second
 
 
   onCreate(options: any) {
     this.state = new MyRoomState();
+    
+    // Initialize voice channels
+    this.voiceChannelManager.initializeDefaultChannels(this.state.voiceChannels);
+    
     registerRoom(this.roomId);
     let lastTickTime = Date.now();
     // Wrap broadcastPatch to record patch metrics
@@ -109,6 +115,7 @@ export class MyRoom extends Room<MyRoomState> {
         this.actionRateLimiter.cleanup();
         this.chatRateLimiter.cleanup();
         this.chatManager.cleanupRateLimits();
+        this.voiceChannelManager.cleanup();
       }
     };
 
@@ -235,6 +242,115 @@ export class MyRoom extends Room<MyRoomState> {
         }
       }
     });
+    
+    // Voice channel management
+    this.onMessage("voice:join", (client, message: { channelId: string }) => {
+      if (!this.actionRateLimiter.checkLimit(client.sessionId, 2)) return;
+      
+      recordMessage(this.roomId, 'voice:join');
+      
+      const entity = this.entityByClient.get(client.sessionId);
+      if (!entity) return;
+      
+      this.voiceChannelManager.joinChannel(
+        this.state.voiceChannels,
+        entity.player,
+        client.sessionId,
+        message.channelId
+      );
+    });
+    
+    this.onMessage("voice:leave", (client) => {
+      if (!this.actionRateLimiter.checkLimit(client.sessionId)) return;
+      
+      recordMessage(this.roomId, 'voice:leave');
+      
+      const entity = this.entityByClient.get(client.sessionId);
+      if (!entity) return;
+      
+      this.voiceChannelManager.leaveChannel(
+        this.state.voiceChannels,
+        entity.player,
+        client.sessionId
+      );
+    });
+    
+    this.onMessage("voice:create", (client, message: { name: string; type: string; maxMembers?: number }) => {
+      if (!this.actionRateLimiter.checkLimit(client.sessionId, 3)) return;
+      
+      recordMessage(this.roomId, 'voice:create');
+      
+      // Generate channel ID
+      const channelId = `channel_${client.sessionId}_${Date.now()}`;
+      
+      this.voiceChannelManager.createChannel(
+        this.state.voiceChannels,
+        channelId,
+        message.name,
+        message.type as any,
+        client.sessionId,
+        message.maxMembers
+      );
+    });
+    
+    this.onMessage("voice:mute", (client, message: { muted: boolean }) => {
+      if (!this.actionRateLimiter.checkLimit(client.sessionId)) return;
+      
+      recordMessage(this.roomId, 'voice:mute');
+      
+      const entity = this.entityByClient.get(client.sessionId);
+      if (!entity) return;
+      
+      this.voiceChannelManager.toggleMute(
+        this.state.voiceChannels,
+        entity.player,
+        client.sessionId,
+        message.muted
+      );
+    });
+    
+    this.onMessage("voice:deafen", (client, message: { deafened: boolean }) => {
+      if (!this.actionRateLimiter.checkLimit(client.sessionId)) return;
+      
+      recordMessage(this.roomId, 'voice:deafen');
+      
+      const entity = this.entityByClient.get(client.sessionId);
+      if (!entity) return;
+      
+      this.voiceChannelManager.toggleDeafen(
+        this.state.voiceChannels,
+        entity.player,
+        client.sessionId,
+        message.deafened
+      );
+    });
+    
+    // WebRTC signaling
+    this.onMessage("voice:signal", (client, message: { to: string; type: string; data: any }) => {
+      // Use dedicated signaling rate limiter (more permissive)
+      if (!this.voiceChannelManager.canSendSignal(client.sessionId)) return;
+      
+      recordMessage(this.roomId, 'voice:signal');
+      
+      const entity = this.entityByClient.get(client.sessionId);
+      if (!entity || !entity.player.currentVoiceChannel) return;
+      
+      // Validate target is in same channel
+      const targetEntity = this.entityByClient.get(message.to);
+      if (!targetEntity || targetEntity.player.currentVoiceChannel !== entity.player.currentVoiceChannel) {
+        return;
+      }
+      
+      // Forward signaling message to target peer
+      const targetClient = Array.from(this.clients).find(c => c.sessionId === message.to);
+      if (targetClient) {
+        targetClient.send('voice:signal', {
+          from: client.sessionId,
+          type: message.type,
+          data: message.data
+        });
+      }
+    });
   }
 
   onJoin(client: Client, options: any) {
@@ -269,9 +385,19 @@ export class MyRoom extends Room<MyRoomState> {
   onLeave(client: Client, consented: boolean) {
     console.log(client.sessionId, 'left!');
 
+    const entity = this.entityByClient.get(client.sessionId);
+    
+    // Clean up voice channel membership
+    if (entity && entity.player) {
+      this.voiceChannelManager.leaveChannel(
+        this.state.voiceChannels,
+        entity.player,
+        client.sessionId
+      );
+    }
+
     this.state.players.delete(client.sessionId);
 
-    const entity = this.world.where((e) => e.sessionId === client.sessionId).first;
     if (entity) {
       this.world.remove(entity);
       console.log('Removed entity for', client.sessionId);

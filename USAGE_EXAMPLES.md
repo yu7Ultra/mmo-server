@@ -248,3 +248,162 @@ main().catch(console.error);
 3. Don't trust client data - server is authoritative
 4. Chat messages are filtered for profanity
 5. Player names are validated (alphanumeric, 3-20 chars)
+
+## Voice Communication
+
+### Joining Voice Channels
+
+```typescript
+// Join global voice channel
+room.send('voice:join', { channelId: 'global' });
+
+// Listen for channel updates
+room.state.voiceChannels.onAdd((channel, channelId) => {
+  console.log('Voice channel available:', channel.name);
+  
+  // Listen for members
+  channel.members.onAdd((member, sessionId) => {
+    console.log(`${member.playerName} joined voice`);
+    if (member.muted) console.log('  (muted)');
+  });
+});
+```
+
+### Creating Voice Channels
+
+```typescript
+// Create a team voice channel
+room.send('voice:create', {
+  name: 'Team Alpha',
+  type: 'group',      // 'global', 'proximity', 'group', 'private'
+  maxMembers: 10
+});
+
+// Create a private call
+room.send('voice:create', {
+  name: 'Private Call',
+  type: 'private',
+  maxMembers: 2
+});
+```
+
+### Voice Controls
+
+```typescript
+// Toggle mute
+room.send('voice:mute', { muted: true });
+
+// Toggle deafen (can't hear others)
+room.send('voice:deafen', { deafened: true });
+
+// Leave voice channel
+room.send('voice:leave');
+```
+
+### WebRTC Voice Setup
+
+```typescript
+// Setup peer connections for voice chat
+const peerConnections = new Map<string, RTCPeerConnection>();
+
+// Create peer connection to another player
+async function setupVoiceConnection(peerId: string) {
+  const pc = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  });
+  
+  peerConnections.set(peerId, pc);
+  
+  // Add microphone stream
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  stream.getTracks().forEach(track => pc.addTrack(track, stream));
+  
+  // Receive audio from peer
+  pc.ontrack = (event) => {
+    const audio = new Audio();
+    audio.srcObject = event.streams[0];
+    audio.play();
+  };
+  
+  // Handle ICE candidates
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      room.send('voice:signal', {
+        to: peerId,
+        type: 'ice-candidate',
+        data: event.candidate.toJSON()
+      });
+    }
+  };
+  
+  // Create and send offer
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  
+  room.send('voice:signal', {
+    to: peerId,
+    type: 'offer',
+    data: offer
+  });
+}
+
+// Handle signaling messages
+room.onMessage('voice:signal', async (message) => {
+  const { from, type, data } = message;
+  
+  let pc = peerConnections.get(from);
+  
+  if (type === 'offer') {
+    if (!pc) {
+      pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+      peerConnections.set(from, pc);
+      // ... setup handlers
+    }
+    
+    await pc.setRemoteDescription(new RTCSessionDescription(data));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    
+    room.send('voice:signal', {
+      to: from,
+      type: 'answer',
+      data: answer
+    });
+  } else if (type === 'answer') {
+    await pc?.setRemoteDescription(new RTCSessionDescription(data));
+  } else if (type === 'ice-candidate') {
+    await pc?.addIceCandidate(new RTCIceCandidate(data));
+  }
+});
+
+// When member joins your channel
+room.state.voiceChannels.get(myChannelId).members.onAdd((member, sessionId) => {
+  if (sessionId !== room.sessionId) {
+    setupVoiceConnection(sessionId);
+  }
+});
+```
+
+### Voice Channel Information
+
+```typescript
+// Get current voice channel
+const myPlayer = room.state.players.get(room.sessionId);
+if (myPlayer.currentVoiceChannel) {
+  const channel = room.state.voiceChannels.get(myPlayer.currentVoiceChannel);
+  console.log('In channel:', channel.name);
+  console.log('Members:', channel.members.size);
+  
+  // List members
+  channel.members.forEach((member, sessionId) => {
+    console.log(`  - ${member.playerName} ${member.muted ? '(muted)' : ''}`);
+  });
+}
+
+// List all available channels
+room.state.voiceChannels.forEach((channel, channelId) => {
+  console.log(`${channel.name} (${channel.type}): ${channel.members.size}/${channel.maxMembers}`);
+});
+```

@@ -9,10 +9,12 @@ import { Schema, type, ArraySchema, MapSchema, SetSchema, DataChange } from '@co
 import { Player } from './Player'
 import { ChatMessage } from './ChatMessage'
 import { LeaderboardEntry } from './LeaderboardEntry'
+import { VoiceChannel } from './VoiceChannel'
 
 export class MyRoomState extends Schema {
     @type({ map: Player }) public players: MapSchema<Player> = new MapSchema<Player>();
     @type([ ChatMessage ]) public chatMessages: ArraySchema<ChatMessage> = new ArraySchema<ChatMessage>();
     @type([ LeaderboardEntry ]) public leaderboard: ArraySchema<LeaderboardEntry> = new ArraySchema<LeaderboardEntry>();
+    @type({ map: VoiceChannel }) public voiceChannels: MapSchema<VoiceChannel> = new MapSchema<VoiceChannel>();
     @type("number") public serverTime!: number;
 }
