@@ -11,6 +11,7 @@ import { Schema, type, ArraySchema, MapSchema, SetSchema, DataChange } from '@co
 export class Skill extends Schema {
     @type("string") public id!: string;
     @type("string") public name!: string;
+    @type("string") public description!: string;
     @type("number") public level!: number;
     @type("number") public cooldown!: number;
     @type("number") public lastUsed!: number;

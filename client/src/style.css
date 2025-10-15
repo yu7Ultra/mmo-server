@@ -118,6 +118,7 @@ body {
   gap: 6px;
   font-size: 11px;
   position: relative;
+  overflow: hidden;
 }
 
 .skill.ready {
@@ -129,6 +130,21 @@ body {
   opacity: 0.5;
 }
 
+.skill-cooldown-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(100, 100, 100, 0.5);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.skill > * {
+  position: relative;
+  z-index: 1;
+}
+
 .skill-key {
   background: #222;
   border: 1px solid #666;
@@ -137,6 +153,11 @@ body {
   font-weight: bold;
   min-width: 20px;
   text-align: center;
+}
+
+.skill-icon {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .skill-name {

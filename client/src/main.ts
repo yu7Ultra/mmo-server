@@ -13,6 +13,7 @@ interface PlayerVisual {
     nameText: Text;
     healthBar: Graphics;
     manaBar: Graphics;
+    effectsContainer: Container; // For floating text and effects
 }
 
 async function main() {
@@ -64,11 +65,27 @@ async function main() {
             app.stage.addChild(playerVisual.container);
             players.set(sessionId, playerVisual);
 
+            // Track previous health for damage/heal numbers
+            let previousHealth = player.health;
+            
             // Setup change listeners
             const callbacks = [
                 $$(player).listen("x", (newValue) => { playerVisual.container.x = newValue; }),
                 $$(player).listen("y", (newValue) => { playerVisual.container.y = newValue; }),
-                $$(player).listen("health", () => updateHealthBar(playerVisual, player)),
+                $$(player).listen("health", (newValue) => {
+                    updateHealthBar(playerVisual, player);
+                    const healthDiff = newValue - previousHealth;
+                    if (healthDiff < 0) {
+                        // Took damage
+                        showFloatingText(playerVisual, Math.abs(Math.round(healthDiff)).toString(), 0xff0000);
+                        flashPlayer(playerVisual, 0xff0000);
+                    } else if (healthDiff > 0) {
+                        // Healed
+                        showFloatingText(playerVisual, '+' + Math.round(healthDiff), 0x00ff00);
+                        flashPlayer(playerVisual, 0x00ff00);
+                    }
+                    previousHealth = newValue;
+                }),
                 $$(player).listen("maxHealth", () => updateHealthBar(playerVisual, player)),
                 $$(player).listen("mana", () => updateManaBar(playerVisual, player)),
                 $$(player).listen("maxMana", () => updateManaBar(playerVisual, player)),
@@ -197,10 +214,14 @@ function createPlayerVisual(player: Player, isCurrentPlayer: boolean): PlayerVis
     manaBar.rect(-15, -21, 30, 2);
     manaBar.fill(0x333333);
     
+    // Effects container for floating text
+    const effectsContainer = new Container();
+    
     container.addChild(graphics);
     container.addChild(nameText);
     container.addChild(healthBar);
     container.addChild(manaBar);
+    container.addChild(effectsContainer);
     container.x = player.x;
     container.y = player.y;
     
@@ -210,7 +231,7 @@ function createPlayerVisual(player: Player, isCurrentPlayer: boolean): PlayerVis
         container.cursor = 'pointer';
     }
     
-    const visual = { container, graphics, nameText, healthBar, manaBar };
+    const visual = { container, graphics, nameText, healthBar, manaBar, effectsContainer };
     updateHealthBar(visual, player);
     updateManaBar(visual, player);
     
@@ -233,6 +254,46 @@ function updateManaBar(visual: PlayerVisual, player: Player) {
     const manaPercent = player.mana / player.maxMana;
     visual.manaBar.rect(-15, -21, 30 * manaPercent, 2);
     visual.manaBar.fill(0x0088ff);
+}
+
+function showFloatingText(visual: PlayerVisual, text: string, color: number) {
+    const floatingText = new Text({
+        text: text,
+        style: {
+            fontSize: 14,
+            fill: color,
+            fontWeight: 'bold',
+            stroke: { color: 0x000000, width: 2 }
+        }
+    });
+    floatingText.anchor.set(0.5, 0.5);
+    floatingText.y = -30;
+    floatingText.alpha = 1;
+    
+    visual.effectsContainer.addChild(floatingText);
+    
+    // Animate floating up and fading out
+    let frame = 0;
+    const animate = () => {
+        frame++;
+        floatingText.y -= 1;
+        floatingText.alpha = Math.max(0, 1 - frame / 60);
+        
+        if (frame < 60) {
+            requestAnimationFrame(animate);
+        } else {
+            visual.effectsContainer.removeChild(floatingText);
+        }
+    };
+    animate();
+}
+
+function flashPlayer(visual: PlayerVisual, color: number) {
+    const originalTint = visual.graphics.tint;
+    visual.graphics.tint = color;
+    setTimeout(() => {
+        visual.graphics.tint = originalTint;
+    }, 100);
 }
 
 function createUI(container: HTMLElement) {
@@ -354,17 +415,18 @@ function findNearestEnemy(players: any, currentPlayerId: string, currentPlayer: 
 function updatePlayerUI(player: Player) {
     const infoEl = document.getElementById('player-info');
     if (infoEl) {
+        const kdRatio = player.deaths === 0 ? player.kills : (player.kills / player.deaths).toFixed(2);
         infoEl.innerHTML = `
             <div class="stat-row">
                 <span>等级: ${player.level}</span>
                 <span>经验: ${player.experience}/${player.experienceToNext}</span>
             </div>
             <div class="stat-row">
-                <span>生命: ${player.health}/${player.maxHealth}</span>
+                <span>生命: ${Math.round(player.health)}/${player.maxHealth}</span>
                 <div class="bar"><div class="bar-fill" style="width: ${(player.health/player.maxHealth*100)}%; background: #00ff00;"></div></div>
             </div>
             <div class="stat-row">
-                <span>魔法: ${player.mana}/${player.maxMana}</span>
+                <span>魔法: ${player.mana.toFixed(1)}/${player.maxMana}</span>
                 <div class="bar"><div class="bar-fill" style="width: ${(player.mana/player.maxMana*100)}%; background: #0088ff;"></div></div>
             </div>
             <div class="stat-row">
@@ -375,6 +437,7 @@ function updatePlayerUI(player: Player) {
             <div class="stat-row">
                 <span>击杀: ${player.kills}</span>
                 <span>死亡: ${player.deaths}</span>
+                <span>K/D: ${kdRatio}</span>
             </div>
         `;
     }
@@ -407,15 +470,41 @@ function updatePlayerUI(player: Player) {
 }
 
 function updateSkillsUI(player: Player) {
+    // Skill icon mapping
+    const skillIcons: { [key: string]: string } = {
+        'fireball': '🔥',
+        'heal': '💚',
+        'shield': '🛡️',
+        'dash': '🏃'
+    };
+    
     // Update skills
     const skillsList = document.getElementById('skills-list');
     if (skillsList) {
         skillsList.innerHTML = player.skills.map((skill, idx) => {
             const cooldownRemaining = Math.max(0, skill.cooldown - (Date.now() - skill.lastUsed));
             const isReady = cooldownRemaining === 0 && player.mana >= skill.manaCost;
+            const icon = skillIcons[skill.id] || '⚡';
+            const cooldownPercent = cooldownRemaining > 0 ? ((skill.cooldown - cooldownRemaining) / skill.cooldown * 100) : 100;
+            
+            // Build tooltip with skill details
+            const tooltipParts = [skill.description || skill.name];
+            if (skill.damage > 0) {
+                if (skill.id === 'heal') {
+                    tooltipParts.push(`恢复: ${skill.damage}`);
+                } else {
+                    tooltipParts.push(`伤害: ${skill.damage}`);
+                }
+            }
+            tooltipParts.push(`冷却: ${skill.cooldown / 1000}秒`);
+            tooltipParts.push(`魔法消耗: ${skill.manaCost}`);
+            const tooltip = tooltipParts.join(' | ');
+            
             return `
-                <div class="skill ${isReady ? 'ready' : 'cooldown'}">
+                <div class="skill ${isReady ? 'ready' : 'cooldown'}" title="${tooltip}">
+                    ${cooldownRemaining > 0 ? `<div class="skill-cooldown-overlay" style="width: ${cooldownPercent}%"></div>` : ''}
                     <span class="skill-key">${idx + 1}</span>
+                    <span class="skill-icon">${icon}</span>
                     <span class="skill-name">${skill.name}</span>
                     <span class="skill-cost">${skill.manaCost} 魔法</span>
                     ${!isReady && cooldownRemaining > 0 ? `<span class="skill-cooldown">${(cooldownRemaining/1000).toFixed(1)}s</span>` : ''}

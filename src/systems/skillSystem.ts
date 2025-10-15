@@ -136,6 +136,7 @@ export function initializeDefaultSkills(player: any): void {
   const fireball = new Skill();
   fireball.id = 'fireball';
   fireball.name = 'Fireball';
+  fireball.description = '发射火球攻击敌人';
   fireball.level = 1;
   fireball.cooldown = 3000; // 3 seconds
   fireball.manaCost = 20;
@@ -145,6 +146,7 @@ export function initializeDefaultSkills(player: any): void {
   const heal = new Skill();
   heal.id = 'heal';
   heal.name = 'Heal';
+  heal.description = '恢复生命值';
   heal.level = 1;
   heal.cooldown = 5000; // 5 seconds
   heal.manaCost = 30;
@@ -154,6 +156,7 @@ export function initializeDefaultSkills(player: any): void {
   const shield = new Skill();
   shield.id = 'shield';
   shield.name = 'Shield';
+  shield.description = '获得护盾防御加成';
   shield.level = 1;
   shield.cooldown = 10000; // 10 seconds
   shield.manaCost = 25;
@@ -163,6 +166,7 @@ export function initializeDefaultSkills(player: any): void {
   const dash = new Skill();
   dash.id = 'dash';
   dash.name = 'Dash';
+  dash.description = '短暂提升移动速度';
   dash.level = 1;
   dash.cooldown = 4000; // 4 seconds
   dash.manaCost = 15;
