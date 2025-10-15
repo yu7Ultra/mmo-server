@@ -43,23 +43,40 @@ Welcome to the MMO Server documentation. This directory contains organized docum
 ```
 documents/
 ├── README.md (this file)
-├── en/                    # English Documentation
+├── en/                    # English Documentation (14 files)
+│   ├── README.md
 │   ├── FEATURES.md
 │   ├── PERFORMANCE.md
 │   ├── USAGE_EXAMPLES.md
-│   ├── VOICE_INTEGRATION.md
-│   ├── VOICE_CLIENT_EXAMPLE.md
-│   ├── IMPLEMENTATION_SUMMARY.md
-│   ├── CLIENT_ENHANCEMENT_SUMMARY.md
-│   └── VOICE_IMPLEMENTATION_SUMMARY.md
-├── zh/                    # Chinese Documentation (中文文档)
-│   ├── MINIPLEX_DOCS_CN.md
 │   ├── CLIENT_README.md
 │   ├── CLIENT_FEATURES.md
 │   ├── CLIENT_USAGE_EXAMPLES.md
+│   ├── VOICE_INTEGRATION.md
+│   ├── VOICE_CLIENT_EXAMPLE.md
+│   ├── VOICE_IMPLEMENTATION_SUMMARY.md
+│   ├── IMPLEMENTATION_SUMMARY.md
+│   ├── CLIENT_ENHANCEMENT_SUMMARY.md
+│   ├── MINIPLEX_DOCS.md
+│   └── POWERSHELL_HELP.md
+├── zh/                    # Chinese Documentation (14 files - 中文文档)
+│   ├── README.md
+│   ├── FEATURES.md
+│   ├── PERFORMANCE.md
+│   ├── USAGE_EXAMPLES.md
+│   ├── CLIENT_README.md
+│   ├── CLIENT_FEATURES.md
+│   ├── CLIENT_USAGE_EXAMPLES.md
+│   ├── VOICE_INTEGRATION.md
+│   ├── VOICE_CLIENT_EXAMPLE.md
+│   ├── VOICE_IMPLEMENTATION_SUMMARY.md
+│   ├── IMPLEMENTATION_SUMMARY.md
+│   ├── CLIENT_ENHANCEMENT_SUMMARY.md
+│   ├── MINIPLEX_DOCS_CN.md
 │   └── POWERSHELL_HELP.md
 └── images/                # Documentation Images
 ```
+
+**Note**: Both English and Chinese directories now contain equivalent complete documentation (14 files each).
 
 ## English Documentation
 
@@ -67,6 +84,11 @@ documents/
 - **[FEATURES.md](./en/FEATURES.md)** - Complete feature documentation for all game systems
 - **[PERFORMANCE.md](./en/PERFORMANCE.md)** - Performance optimization guide and profiling instructions
 - **[USAGE_EXAMPLES.md](./en/USAGE_EXAMPLES.md)** - Code examples for using server features
+
+### Client Documentation
+- **[CLIENT_README.md](./en/CLIENT_README.md)** - Client overview and setup guide
+- **[CLIENT_FEATURES.md](./en/CLIENT_FEATURES.md)** - Detailed client feature usage
+- **[CLIENT_USAGE_EXAMPLES.md](./en/CLIENT_USAGE_EXAMPLES.md)** - Client usage examples and scenarios
 
 ### Voice Communication
 - **[VOICE_INTEGRATION.md](./en/VOICE_INTEGRATION.md)** - Technical integration guide for voice communication
@@ -77,16 +99,34 @@ documents/
 - **[CLIENT_ENHANCEMENT_SUMMARY.md](./en/CLIENT_ENHANCEMENT_SUMMARY.md)** - Client feature enhancements overview
 - **[VOICE_IMPLEMENTATION_SUMMARY.md](./en/VOICE_IMPLEMENTATION_SUMMARY.md)** - Voice system implementation details
 
+### Framework & Tools
+- **[MINIPLEX_DOCS.md](./en/MINIPLEX_DOCS.md)** - Miniplex ECS framework documentation
+- **[POWERSHELL_HELP.md](./en/POWERSHELL_HELP.md)** - PowerShell setup help
+
 ## Chinese Documentation (中文文档)
 
 ### 核心文档
-- **[MINIPLEX_DOCS_CN.md](./zh/MINIPLEX_DOCS_CN.md)** - Miniplex ECS 框架中文文档
-- **[CLIENT_README.md](./zh/CLIENT_README.md)** - 客户端说明文档
-- **[CLIENT_FEATURES.md](./zh/CLIENT_FEATURES.md)** - 客户端功能使用指南
-- **[CLIENT_USAGE_EXAMPLES.md](./zh/CLIENT_USAGE_EXAMPLES.md)** - 客户端使用示例
+- **[FEATURES.md](./zh/FEATURES.md)** - 所有游戏系统的完整功能文档
+- **[PERFORMANCE.md](./zh/PERFORMANCE.md)** - 性能优化指南和性能分析说明
+- **[USAGE_EXAMPLES.md](./zh/USAGE_EXAMPLES.md)** - 使用服务器功能的代码示例
 
-### 其他
-- **[POWERSHELL_HELP.md](./zh/POWERSHELL_HELP.md)** - PowerShell 执行策略帮助
+### 客户端文档
+- **[CLIENT_README.md](./zh/CLIENT_README.md)** - 客户端概览和设置指南
+- **[CLIENT_FEATURES.md](./zh/CLIENT_FEATURES.md)** - 详细的客户端功能使用说明
+- **[CLIENT_USAGE_EXAMPLES.md](./zh/CLIENT_USAGE_EXAMPLES.md)** - 客户端使用示例和场景
+
+### 语音通讯
+- **[VOICE_INTEGRATION.md](./zh/VOICE_INTEGRATION.md)** - 语音通讯技术集成指南
+- **[VOICE_CLIENT_EXAMPLE.md](./zh/VOICE_CLIENT_EXAMPLE.md)** - 完整的客户端语音实现示例
+
+### 实现细节
+- **[IMPLEMENTATION_SUMMARY.md](./zh/IMPLEMENTATION_SUMMARY.md)** - MMO 服务器增强功能总结
+- **[CLIENT_ENHANCEMENT_SUMMARY.md](./zh/CLIENT_ENHANCEMENT_SUMMARY.md)** - 客户端功能增强概述
+- **[VOICE_IMPLEMENTATION_SUMMARY.md](./zh/VOICE_IMPLEMENTATION_SUMMARY.md)** - 语音系统实现细节
+
+### 框架和工具
+- **[MINIPLEX_DOCS_CN.md](./zh/MINIPLEX_DOCS_CN.md)** - Miniplex ECS 框架中文文档
+- **[POWERSHELL_HELP.md](./zh/POWERSHELL_HELP.md)** - PowerShell 设置帮助
 
 ## Quick Links
 

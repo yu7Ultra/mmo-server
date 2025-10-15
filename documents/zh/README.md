@@ -8,16 +8,39 @@
 
 | 文档 | 描述 | 内容 |
 |------|------|------|
-| [MINIPLEX_DOCS_CN.md](./MINIPLEX_DOCS_CN.md) | Miniplex ECS 框架中文文档 | 实体组件系统使用指南 |
-| [CLIENT_README.md](./CLIENT_README.md) | 客户端说明文档 | 客户端功能特性、安装和运行说明 |
-| [CLIENT_FEATURES.md](./CLIENT_FEATURES.md) | 客户端功能使用指南 | 详细的功能使用说明和服务器集成 |
-| [CLIENT_USAGE_EXAMPLES.md](./CLIENT_USAGE_EXAMPLES.md) | 客户端使用示例 | 实际游戏场景演示和调试技巧 |
+| [FEATURES.md](./FEATURES.md) | 完整功能文档 | 战斗、技能、任务、成就、聊天、语音、安全 |
+| [PERFORMANCE.md](./PERFORMANCE.md) | 性能优化指南 | 性能分析、指标、最佳实践 |
+| [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md) | 代码示例和片段 | 客户端集成、API 使用 |
 
-### 🔧 工具文档
+### 🎮 客户端文档
+
+| 文档 | 描述 | 内容 |
+|------|------|------|
+| [CLIENT_README.md](./CLIENT_README.md) | 客户端概览和设置 | 安装、功能、控制方式 |
+| [CLIENT_FEATURES.md](./CLIENT_FEATURES.md) | 客户端功能指南 | 详细功能使用、服务器集成 |
+| [CLIENT_USAGE_EXAMPLES.md](./CLIENT_USAGE_EXAMPLES.md) | 客户端使用示例 | 游戏场景、调试技巧 |
+
+### 🎙️ 语音通讯
 
 | 文档 | 描述 | 用途 |
 |------|------|------|
-| [POWERSHELL_HELP.md](./POWERSHELL_HELP.md) | PowerShell 执行策略帮助 | Windows 环境配置 |
+| [VOICE_INTEGRATION.md](./VOICE_INTEGRATION.md) | 技术集成指南 | 开发者实现语音功能 |
+| [VOICE_CLIENT_EXAMPLE.md](./VOICE_CLIENT_EXAMPLE.md) | 完整工作示例 | 可复制粘贴的客户端实现 |
+| [VOICE_IMPLEMENTATION_SUMMARY.md](./VOICE_IMPLEMENTATION_SUMMARY.md) | 实现细节 | 理解语音系统架构 |
+
+### 📝 实现总结
+
+| 文档 | 描述 | 受众 |
+|------|------|------|
+| [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) | 服务器整体增强 | 开发者和项目干系人 |
+| [CLIENT_ENHANCEMENT_SUMMARY.md](./CLIENT_ENHANCEMENT_SUMMARY.md) | 客户端功能添加 | 前端开发者 |
+
+### 🔧 框架和工具
+
+| 文档 | 描述 | 内容 |
+|------|------|------|
+| [MINIPLEX_DOCS_CN.md](./MINIPLEX_DOCS_CN.md) | Miniplex ECS 框架指南 | 实体组件系统使用 |
+| [POWERSHELL_HELP.md](./POWERSHELL_HELP.md) | PowerShell 设置帮助 | Windows 环境配置 |
 
 ## 快速开始
 

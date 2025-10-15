@@ -12,6 +12,14 @@ This directory contains all English documentation for the MMO Server project.
 | [PERFORMANCE.md](./PERFORMANCE.md) | Performance optimization guide | Profiling, Metrics, Best practices |
 | [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md) | Code examples and snippets | Client integration, API usage |
 
+### 🎮 Client Documentation
+
+| Document | Description | Topics Covered |
+|----------|-------------|----------------|
+| [CLIENT_README.md](./CLIENT_README.md) | Client overview and setup | Installation, features, controls |
+| [CLIENT_FEATURES.md](./CLIENT_FEATURES.md) | Client feature guide | Detailed feature usage, server integration |
+| [CLIENT_USAGE_EXAMPLES.md](./CLIENT_USAGE_EXAMPLES.md) | Client usage examples | Game scenarios, debugging tips |
+
 ### 🎙️ Voice Communication
 
 | Document | Description | Use Case |
@@ -26,6 +34,13 @@ This directory contains all English documentation for the MMO Server project.
 |----------|-------------|----------|
 | [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) | Overall server enhancements | Developers & stakeholders |
 | [CLIENT_ENHANCEMENT_SUMMARY.md](./CLIENT_ENHANCEMENT_SUMMARY.md) | Client feature additions | Frontend developers |
+
+### 🔧 Framework & Tools
+
+| Document | Description | Topics Covered |
+|----------|-------------|----------------|
+| [MINIPLEX_DOCS.md](./MINIPLEX_DOCS.md) | Miniplex ECS framework guide | Entity component system usage |
+| [POWERSHELL_HELP.md](./POWERSHELL_HELP.md) | PowerShell setup help | Windows environment configuration |
 
 ## Getting Started
 
