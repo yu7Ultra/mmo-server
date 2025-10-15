@@ -1,6 +1,21 @@
 # Colyseus MMO Server
 
-Production-ready Colyseus clustered MMO server (TypeScript) with ECS, uWebSockets transport, Redis-ready configuration, custom performance metrics, and testing setup.
+Production-ready Colyseus MMO server (TypeScript) with comprehensive game systems, ECS architecture, uWebSockets transport, Redis-ready configuration, custom performance metrics, and testing setup.
+
+## Features
+
+This server includes essential MMO features:
+- ✅ **Combat System**: PvE/PvP combat with damage calculation and regeneration
+- ✅ **Skill System**: 4 default skills with cooldowns and mana costs
+- ✅ **Quest System**: Progress tracking and auto-completion
+- ✅ **Achievement System**: 9 default achievements
+- ✅ **Leaderboard**: Top 10 player rankings
+- ✅ **Chat System**: Rate-limited chat with profanity filtering
+- ✅ **Social System**: Friend management
+- ✅ **Security**: Rate limiting, input validation, and XSS protection
+- ✅ **Performance**: Object pooling, efficient ECS queries, minimal GC
+
+See [FEATURES.md](./FEATURES.md) for detailed documentation on all systems.
 
 ## Installation
 
@@ -19,8 +34,23 @@ The server will start on port 2567.
 -- Schema definitions are in `src/schemas/`.
 -- ECS entities & systems live under `src/entities/` and `src/systems/`.
 -- Custom metrics instrumentation in `src/instrumentation/metrics.ts`.
+-- Security utilities in `src/utils/security.ts`.
 -- Frontend client (Vite + Pixi.js) in `client/` built into `client/dist`.
 -- Load testing / mock clients in `client/src/command/`.
+
+### Message Handlers
+
+The server accepts the following client messages:
+
+| Message | Payload | Description |
+|---------|---------|-------------|
+| `move` | `{ x: number, y: number }` | Set player velocity |
+| `attack` | `{ targetId: string, skillId?: string }` | Attack target, optionally with skill |
+| `chat` | `{ message: string, channel?: string }` | Send chat message |
+| `quest` | `{ questId: string, action: 'abandon' }` | Manage quests |
+| `friend` | `{ targetId: string, action: 'add'\|'remove' }` | Manage friends |
+
+All messages are rate-limited for security.
 
 ### Custom Metrics
 
@@ -70,6 +100,14 @@ scrape_configs:
 ### Testing
 
 Run test suite: `yarn test`
+
+The test suite includes comprehensive tests for:
+- Combat system (damage, regeneration, kill tracking)
+- Skill system (cooldowns, mana costs, buffs)
+- Quest system (progress tracking, completion, rewards)
+- Achievement system (unlocking, progress)
+- Chat system (rate limiting, filtering)
+- Security utilities (rate limiting, input validation, object pooling)
 
 ### Development Loop
 
