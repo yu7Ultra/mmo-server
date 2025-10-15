@@ -23,6 +23,8 @@ This server includes essential MMO features:
 - **English**: [documents/en/](./documents/en/) - Features, performance, usage examples, voice integration
 - **中文**: [documents/zh/](./documents/zh/) - 客户端文档、Miniplex 指南、使用示例
 
+> 📝 **New Documentation Structure**: See [DOCUMENTATION_MIGRATION.md](./DOCUMENTATION_MIGRATION.md) for the migration guide and file locations.
+
 Quick links:
 - [Feature Documentation](./documents/en/FEATURES.md) - Detailed system documentation
 - [Usage Examples](./documents/en/USAGE_EXAMPLES.md) - Code examples and integration
