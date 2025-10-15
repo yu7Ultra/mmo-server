@@ -8,6 +8,7 @@ import express from 'express';
 import path from 'path';
 import { MyRoom } from './rooms/MyRoom';
 import { collectAllMetrics, toPrometheusText } from './instrumentation/metrics';
+import { register as prometheusRegister } from './instrumentation/prometheusMetrics';
 import { captureCPUProfile, listProfiles, captureHeapSnapshot } from './instrumentation/profiler';
 
 // Load environment variables from .env file
@@ -40,7 +41,15 @@ const config: ConfigOptions = {
         app.get('/metrics.json', (req, res) => {
             res.json(collectAllMetrics());
         });
-        app.get('/metrics', (req, res) => {
+        
+        // Prometheus metrics endpoint (standard format)
+        app.get('/metrics', async (req, res) => {
+            res.setHeader('Content-Type', prometheusRegister.contentType);
+            res.send(await prometheusRegister.metrics());
+        });
+        
+        // Legacy Prometheus endpoint (for backward compatibility)
+        app.get('/metrics/legacy', (req, res) => {
             res.setHeader('Content-Type', 'text/plain');
             res.send(toPrometheusText());
         });

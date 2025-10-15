@@ -2,6 +2,7 @@ import { Client, Room } from '@colyseus/core';
 import { World } from 'miniplex';
 import { AttackCommand, ChatCommand, Command, Entity, QuestCommand } from '../entities';
 import { recordMessage, recordPatch, recordSlowTick, recordTick, registerRoom, unregisterRoom, updateAutoProfile, updateClients } from '../instrumentation/metrics';
+import { recordPlayerJoin, recordPlayerLeave } from '../instrumentation/prometheusMetrics';
 import { ENV } from '../config/env';
 import { MyRoomState, Player } from '../schemas/MyRoomState';
 import { achievementSystem, initializeAchievements } from '../systems/achievementSystem';
@@ -405,6 +406,9 @@ export class MyRoom extends Room<MyRoomState> {
     });
 
     this.entityByClient.set(client.sessionId, entity);
+    
+    // Record player join in metrics
+    recordPlayerJoin(this.roomId);
   }
 
   onLeave(client: Client, consented: boolean) {
@@ -428,6 +432,9 @@ export class MyRoom extends Room<MyRoomState> {
       console.log('Removed entity for', client.sessionId);
     }
     this.entityByClient.delete(client.sessionId);
+    
+    // Record player leave in metrics
+    recordPlayerLeave(this.roomId);
   }
 
   onDispose() {

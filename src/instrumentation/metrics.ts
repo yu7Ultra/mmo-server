@@ -1,5 +1,6 @@
 import { performance } from 'perf_hooks';
 import os from 'os';
+import * as prom from './prometheusMetrics';
 
 class SlidingWindow {
   private values: number[] = [];
@@ -55,10 +56,16 @@ export function registerRoom(roomId: string) {
     recentSlowTicks: [],
     autoProfilesTriggered: 0,
   });
+  
+  // Update Prometheus metric
+  prom.updateRoomCount(rooms.size);
 }
 
 export function unregisterRoom(roomId: string) {
   rooms.delete(roomId);
+  
+  // Update Prometheus metric
+  prom.updateRoomCount(rooms.size);
 }
 
 export function recordTick(roomId: string, ms: number) {
@@ -66,6 +73,9 @@ export function recordTick(roomId: string, ms: number) {
   if (!m) return;
   m.tickCount++;
   m.tickDurations.push(ms);
+  
+  // Record in Prometheus
+  prom.recordTickDuration(roomId, ms);
 }
 
 export function recordSlowTick(roomId: string, ms: number, threshold: number) {
@@ -74,6 +84,10 @@ export function recordSlowTick(roomId: string, ms: number, threshold: number) {
   m.slowTickCount++;
   m.recentSlowTicks.push(ms);
   if (m.recentSlowTicks.length > 20) m.recentSlowTicks.shift();
+  
+  // Record in Prometheus
+  prom.recordSlowTick(roomId);
+  
   // Optional: could log once
   if (m.slowTickCount === 1 || m.slowTickCount % 50 === 0) {
     console.warn(`[perf] slow tick in room ${roomId}: ${ms.toFixed(2)}ms (> ${threshold}ms)`);
@@ -94,6 +108,9 @@ export function recordMessage(roomId: string, type?: string, approximateBytes?: 
   m.lastSecondMessages++;
   if (type === 'move') m.moveMessages++;
   if (approximateBytes) m.bytesEstimate += approximateBytes;
+  
+  // Record in Prometheus
+  prom.recordMessage(roomId, type || 'unknown');
 }
 
 export function recordPatch(roomId: string, approximateBytes?: number) {
@@ -102,12 +119,25 @@ export function recordPatch(roomId: string, approximateBytes?: number) {
   m.patchesSent++;
   m.lastSecondPatches++;
   if (approximateBytes) m.bytesEstimate += approximateBytes;
+  
+  // Record in Prometheus
+  prom.recordPatch(roomId, approximateBytes);
 }
 
 export function updateClients(roomId: string, count: number) {
   const m = rooms.get(roomId);
   if (!m) return;
   m.clients = count;
+  
+  // Update Prometheus metrics
+  prom.roomClients.labels(roomId).set(count);
+  
+  // Update total clients
+  let total = 0;
+  for (const room of rooms.values()) {
+    total += room.clients;
+  }
+  prom.updateTotalClients(total);
 }
 
 setInterval(() => {
@@ -125,6 +155,9 @@ let eventLoopLagMs = 0;
     const diff = now - start - interval;
     eventLoopLagMs = diff < 0 ? 0 : diff;
     start = now;
+    
+    // Update Prometheus metric
+    prom.updateEventLoopLag(eventLoopLagMs);
   }, interval).unref();
 })();
 

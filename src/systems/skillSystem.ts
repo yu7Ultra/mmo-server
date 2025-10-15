@@ -3,6 +3,7 @@ import { Entity } from '../entities';
 import { Skill } from '../schemas/MyRoomState';
 import { configManager } from '../config/configManager';
 import { SkillsConfig, SkillConfig, SkillEffect } from '../config/skillConfig';
+import * as prom from '../instrumentation/prometheusMetrics';
 
 /**
  * Skill configuration cache
@@ -94,6 +95,9 @@ export function useSkill(
   // Update last used time
   skill.lastUsed = now;
   
+  // Record skill usage in Prometheus
+  prom.recordSkillUse(skillId);
+  
   // Apply skill effect based on skill type
   applySkillEffect(caster, skill, target);
   
@@ -137,6 +141,9 @@ function applyEffect(caster: Entity, effect: SkillEffect, target: Entity | undef
         effectTarget.player.health = Math.max(0, effectTarget.player.health - damage);
         caster.player.damageDealt += damage;
         effectTarget.player.damageTaken += damage;
+        
+        // Record damage in Prometheus
+        prom.recordDamage(skillConfig.id, damage);
       }
       break;
       

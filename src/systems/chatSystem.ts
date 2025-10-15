@@ -1,4 +1,5 @@
 import { ChatMessage } from '../schemas/MyRoomState';
+import * as prom from '../instrumentation/prometheusMetrics';
 
 /**
  * Chat system - manages chat messages with rate limiting
@@ -58,6 +59,9 @@ export class ChatManager {
     
     // Update rate limit tracker
     this.lastMessageTime.set(sessionId, now);
+    
+    // Record chat message in Prometheus
+    prom.recordChatMessage(channel);
     
     return true;
   }
