@@ -3,9 +3,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #1a1a1a;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,112 +13,318 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-html,
-body {
-  width: 100%;
-  height: 100%;
+* {
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
   overflow: hidden;
+  width: 100vw;
+  height: 100vh;
 }
 
 #app {
   width: 100%;
   height: 100%;
+  display: flex;
+}
+
+#game-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
   position: relative;
 }
 
-canvas {
+#game-canvas {
+  flex: 1;
+  position: relative;
+  background: #1a1a1a;
+}
+
+#game-canvas canvas {
   display: block;
-  width: 100% !important;
-  height: 100% !important;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+#ui-overlay {
+  width: 320px;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-left: 2px solid #333;
 }
 
-/* #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-} */
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-
-.logo.vanilla:hover {
-  filter: drop-shadow(0 0 2em #3178c6aa);
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-
-button {
+.panel {
+  background: rgba(40, 40, 40, 0.9);
+  border: 1px solid #444;
   border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
+  padding: 10px;
+  color: #fff;
+}
+
+.panel h3 {
+  font-size: 14px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #555;
+  color: #4af;
+}
+
+#player-info {
+  font-size: 12px;
+}
+
+.stat-row {
+  margin: 5px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 5px;
+}
+
+.stat-row span {
+  font-size: 11px;
+}
+
+.bar {
+  flex: 1;
+  height: 8px;
+  background: #222;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #444;
+}
+
+.bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.skill {
+  background: rgba(60, 60, 60, 0.8);
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 6px;
+  margin: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  position: relative;
+}
+
+.skill.ready {
+  background: rgba(0, 150, 0, 0.2);
+  border-color: #0a0;
+}
+
+.skill.cooldown {
+  opacity: 0.5;
+}
+
+.skill-key {
+  background: #222;
+  border: 1px solid #666;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-weight: bold;
+  min-width: 20px;
+  text-align: center;
+}
+
+.skill-name {
+  flex: 1;
   font-weight: 500;
+}
+
+.skill-cost {
+  color: #4af;
+  font-size: 10px;
+}
+
+.skill-cooldown {
+  color: #f80;
+  font-size: 10px;
+}
+
+.quest {
+  background: rgba(60, 60, 60, 0.8);
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 6px;
+  margin: 4px 0;
+  font-size: 11px;
+}
+
+.quest.completed {
+  background: rgba(0, 100, 0, 0.3);
+  border-color: #0a0;
+}
+
+.quest-name {
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+
+.quest-progress {
+  color: #4af;
+  font-size: 10px;
+}
+
+.quest-reward {
+  color: #fa0;
+  font-size: 10px;
+}
+
+.achievement {
+  background: rgba(100, 60, 0, 0.3);
+  border: 1px solid #a60;
+  border-radius: 4px;
+  padding: 6px;
+  margin: 4px 0;
+  font-size: 11px;
+}
+
+.achievement.unlocked {
+  background: rgba(150, 100, 0, 0.3);
+  border-color: #fa0;
+}
+
+.achievement-name {
+  font-weight: 500;
+  color: #fa0;
+  margin-bottom: 2px;
+}
+
+.achievement-desc {
+  font-size: 10px;
+  color: #ccc;
+}
+
+.leaderboard-entry {
+  background: rgba(60, 60, 60, 0.8);
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 6px;
+  margin: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.leaderboard-entry .rank {
+  font-weight: bold;
+  color: #fa0;
+  min-width: 30px;
+}
+
+.leaderboard-entry .player-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.leaderboard-entry .level {
+  color: #4af;
+}
+
+.leaderboard-entry .score {
+  color: #0f0;
+  font-weight: bold;
+}
+
+#chat-messages {
+  max-height: 200px;
+  min-height: 150px;
+  overflow-y: auto;
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 6px;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+
+.chat-message {
+  margin: 3px 0;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.chat-message .sender {
+  font-weight: bold;
+  color: #4af;
+}
+
+.chat-message .message {
+  color: #ddd;
+}
+
+.chat-message.channel-global {
+  border-left: 2px solid #4af;
+}
+
+#chat-input-container {
+  display: flex;
+  gap: 5px;
+}
+
+#chat-input {
+  flex: 1;
+  background: rgba(40, 40, 40, 0.9);
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 6px;
+  color: #fff;
+  font-size: 11px;
   font-family: inherit;
-  background-color: #1a1a1a;
+}
+
+#chat-input:focus {
+  outline: none;
+  border-color: #4af;
+}
+
+#chat-send {
+  background: rgba(60, 60, 100, 0.8);
+  border: 1px solid #66f;
+  border-radius: 4px;
+  padding: 6px 12px;
+  color: #fff;
   cursor: pointer;
-  transition: border-color 0.25s;
+  font-size: 11px;
+  font-family: inherit;
+  transition: background 0.2s;
 }
 
-button:hover {
-  border-color: #646cff;
+#chat-send:hover {
+  background: rgba(80, 80, 120, 0.9);
 }
 
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.empty {
+  color: #888;
+  font-size: 11px;
+  text-align: center;
+  padding: 10px;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
+.controls-info {
+  font-size: 11px;
+  color: #ccc;
+}
 
-  a:hover {
-    color: #747bff;
-  }
+.controls-info > div {
+  padding: 4px 0;
+  border-bottom: 1px solid #333;
+}
 
-  button {
-    background-color: #f9f9f9;
-  }
+.controls-info > div:last-child {
+  border-bottom: none;
 }

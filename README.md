@@ -38,6 +38,31 @@ The server will start on port 2567.
 -- Frontend client (Vite + Pixi.js) in `client/` built into `client/dist`.
 -- Load testing / mock clients in `client/src/command/`.
 
+### Client Application
+
+A fully-featured MMO game client is included in the `client/` directory with:
+- ✅ **8 UI Panels**: Controls, Player Stats, Skills, Quests, Achievements, Leaderboard, Chat, Game Canvas
+- ✅ **Complete Controls**: Arrow keys (movement), 1-4 (skills), Click (attack), Enter (chat)
+- ✅ **Visual Feedback**: Health bars, mana bars, player names, cooldown timers
+- ✅ **Real-time Sync**: All 20+ player properties synchronized from server
+
+**Run the client:**
+```bash
+cd client
+yarn install
+yarn dev
+# Opens at http://localhost:5173
+```
+
+**Build the client:**
+```bash
+cd client
+yarn build
+# Output in client/dist/
+```
+
+See [client/README.md](./client/README.md) for detailed client documentation.
+
 ### Message Handlers
 
 The server accepts the following client messages:
