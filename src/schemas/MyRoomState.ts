@@ -142,4 +142,6 @@ export class MyRoomState extends Schema {
   @type([LeaderboardEntry]) leaderboard = new ArraySchema<LeaderboardEntry>();
   @type({ map: VoiceChannel }) voiceChannels = new MapSchema<VoiceChannel>();
   @type('number') serverTime: number = Date.now();
+  @type('number') worldWidth: number = 2000;
+  @type('number') worldHeight: number = 2000;
 }

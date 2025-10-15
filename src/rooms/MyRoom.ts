@@ -9,7 +9,7 @@ import { ChatManager } from '../systems/chatSystem';
 import { combatSystem, regenerationSystem } from '../systems/combatSystem';
 import { inputSystem } from '../systems/inputSystem';
 import { LeaderboardManager } from '../systems/leaderboardSystem';
-import { movementSystem } from '../systems/movementSystem';
+import { movementSystem, setWorldBounds } from '../systems/movementSystem';
 import { abandonQuest, grantQuest, initializeStarterQuests, questSystem, updateQuestProgress } from '../systems/questSystem';
 import { buffSystem, initializeDefaultSkills, skillSystem, useSkill } from '../systems/skillSystem';
 import { syncSystem } from '../systems/syncSystem';
@@ -35,6 +35,8 @@ export class MyRoom extends Room<MyRoomState> {
 
   onCreate(options: any) {
     this.state = new MyRoomState();
+  // Configure world bounds (could be env-configurable later)
+  setWorldBounds(this.state.worldWidth, this.state.worldHeight);
     
     // Initialize voice channels
     this.voiceChannelManager.initializeDefaultChannels(this.state.voiceChannels);
@@ -185,7 +187,23 @@ export class MyRoom extends Room<MyRoomState> {
       
       // Use skill if specified
       if (message.skillId) {
-        useSkill(attacker, message.skillId, target);
+        const beforeTargetHealth = target.player.health;
+        const beforeCasterHealth = attacker.player.health;
+        const success = useSkill(attacker, message.skillId, target);
+        if (success) {
+          // Broadcast cast event (fire-and-forget visual hint for clients)
+            this.broadcast('skill_cast', {
+              casterId: client.sessionId,
+              skillId: message.skillId,
+              targetId: message.targetId,
+              from: { x: attacker.player.x, y: attacker.player.y },
+              to: { x: target.player.x, y: target.player.y },
+              // simple delta hints (optional)
+              targetHealthDelta: target.player.health - beforeTargetHealth,
+              casterHealthDelta: attacker.player.health - beforeCasterHealth,
+              serverTime: Date.now()
+            });
+        }
       }
     });
     
@@ -357,6 +375,9 @@ export class MyRoom extends Room<MyRoomState> {
     console.log(client.sessionId, 'joined!');
 
     const player = new Player();
+    // Spawn within world bounds
+    player.x = Math.random() * this.state.worldWidth;
+    player.y = Math.random() * this.state.worldHeight;
     
     // Set player name from options if provided
     if (options.name && InputValidator.validatePlayerName(options.name)) {
