@@ -1,0 +1,29 @@
+{
+  "name": "asset-fetcher",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Automated OpenGameArt (and other sources) asset fetch tool for MMO client/server art pipeline.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "npm run build --silent && node dist/fetchAssets.js --config assets.config.json",
+    "dev": "tsx src/fetchAssets.ts --config assets.config.json",
+    "lint": "eslint . --ext .ts"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.10",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "got": "^13.0.0",
+    "ora": "^8.0.1",
+    "sharp": "^0.34.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.5",
+    "@types/node": "^20.11.30",
+    "eslint": "^8.57.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}

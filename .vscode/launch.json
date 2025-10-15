@@ -9,13 +9,46 @@
             "request": "launch",
             "name": "Debug Server (Profile)",
             "program": "${workspaceFolder}/build/index.js",
-            "runtimeArgs": [
-                "--inspect"
-            ],
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
+            "runtimeArgs": ["--inspect"],
+            "skipFiles": ["<node_internals>/**"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Client: Vite + Chrome",
+            "request": "launch",
+            "type": "chrome",
+            "url": "http://localhost:5173",
+            "webRoot": "${workspaceFolder}/client/src",
+            "sourceMaps": true
+        },
+        {
+            "name": "Client: Vite + Edge",
+            "request": "launch",
+            "type": "msedge",
+            "url": "http://localhost:5173",
+            "webRoot": "${workspaceFolder}/client/src",
+            "sourceMaps": true
+        },
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Attach Running Server",
+            "port": 9229,
+            "restart": true,
+            "skipFiles": ["<node_internals>/**"],
+            "timeout": 10000
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Tool: Asset Fetcher Debug",
+            "cwd": "${workspaceFolder}/tools/asset-fetcher",
+            "program": "${workspaceFolder}/tools/asset-fetcher/dist/fetchAssets.js",
+            "runtimeArgs": ["--inspect-brk"],
+            "args": ["--config", "assets.config.json", "--verbose"],
+            "skipFiles": ["<node_internals>/**"],
             "console": "integratedTerminal"
         }
-    ]
+    ],
+    "compounds": []
 }

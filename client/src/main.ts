@@ -1,6 +1,11 @@
 import { Client, getStateCallbacks, Room } from 'colyseus.js';
-import { Application, Graphics, Text, Container, Sprite, Texture, Assets, Rectangle } from 'pixi.js';
-import { PLAYER_FRAME_SIZE, PLAYER_FRAMES_PER_DIR, getFrameRect, Direction, getFrameTexture } from './assets/playerSheet';
+import { Application, Graphics, Text, Container, Sprite } from 'pixi.js';
+// Fallback procedural sheet utilities (kept for when external assets not yet loaded)
+import { PLAYER_FRAME_SIZE, PLAYER_FRAMES_PER_DIR, Direction, getFrameTexture } from './assets/playerSheet';
+// External asset pipeline (new)
+import { loadGameAssets, getLoadedAssets } from './assets/loaders/assetLoader';
+import { loadTMX, TMXMap } from './map/tmxLoader';
+import { LpcPlayerSprite, LpcAction } from './sprites/lpcPlayer';
 import { MyRoomState } from './states/MyRoomState';
 import { Player } from './states/Player';
 import './style.css';
@@ -36,9 +41,18 @@ interface PlayerVisual {
     movement: {
         x: number; // displayed x
         y: number; // displayed y
-        targetX: number;
-        targetY: number;
+        targetX: number; // latest server x
+        targetY: number; // latest server y
+        lerpFromX: number;
+        lerpFromY: number;
+        lerpStart: number; // ms timestamp
+        lerpDuration: number; // planned interp duration
+        lastServerUpdate: number;
+        predicted: boolean; // currently showing predicted position
+        velocityX: number; // last input vel
+        velocityY: number;
     };
+    action: LpcAction;
 }
 
 // Screen shake state
@@ -119,11 +133,84 @@ async function main() {
     const players = new Map<string, PlayerVisual>();
     const playersUnCallback = new Map<string, Function[]>();
 
-    // Generate procedural sheet (instant); hide loading
+    // Load external assets (LPC + FX). If fails, we still continue with procedural fallback.
+    try {
+        await loadGameAssets();
+        console.log('[assets] External assets loaded');
+    } catch (err) {
+        console.warn('[assets] Failed to load external assets, using procedural fallback', err);
+    }
     setLoading(false);
-    
+
     try {
         const room = await client.joinOrCreate<MyRoomState>("my_room", { name: "Player" + Math.floor(Math.random() * 1000) });
+        // Attempt TMX map load (Kenney sample overworld)
+        let mapData: TMXMap | null = null;
+        const loadedAssets = getLoadedAssets();
+        try {
+            mapData = await loadTMX('assets/oga/kenney_monochrome-pirates/Tiled/sample-overworld.tmx');
+            console.log('[map] TMX loaded', mapData.width, 'x', mapData.height, 'tiles');
+        } catch (e) {
+            console.warn('[map] TMX load failed, using procedural ground fallback', e);
+        }
+        if (mapData && loadedAssets.tiles) {
+            // Replace world size with TMX dimensions (client-side only) for camera/minimap consistency if larger
+            const derivedW = mapData.width * mapData.tilewidth;
+            const derivedH = mapData.height * mapData.tileheight;
+            // Composite: repeat the small sample map NxM times to create a larger world quickly.
+            const repeatX = 6;
+            const repeatY = 6;
+            for (let ry = 0; ry < repeatY; ry++) {
+                for (let rx = 0; rx < repeatX; rx++) {
+                    mapData.layers.forEach((layer, layerIndex) => {
+                        const layerContainer = new Container();
+                        layerContainer.zIndex = -1000 + layerIndex; // ensure behind entities
+                        world.addChild(layerContainer);
+                        const tiles = loadedAssets.tiles!;
+                        for (let ty = 0; ty < layer.height; ty++) {
+                            for (let tx = 0; tx < layer.width; tx++) {
+                                const gid = layer.data[ty * layer.width + tx];
+                                if (!gid) continue;
+                                const tileIndex = gid - mapData.tileset.firstgid;
+                                const tex = tiles[tileIndex];
+                                if (!tex) continue;
+                                const sprite = new Sprite(tex);
+                                sprite.x = rx * derivedW + tx * mapData.tilewidth;
+                                sprite.y = ry * derivedH + ty * mapData.tileheight;
+                                sprite.anchor.set(0);
+                                layerContainer.addChild(sprite);
+                            }
+                        }
+                    });
+                }
+            }
+            const bigW = derivedW * repeatX;
+            const bigH = derivedH * repeatY;
+            if ((room.state.worldWidth || 0) < bigW) (room.state as any).worldWidth = bigW;
+            if ((room.state.worldHeight || 0) < bigH) (room.state as any).worldHeight = bigH;
+        } else if (loadedAssets.tiles && loadedAssets.tiles.length > 0) {
+            // Fallback to simple fill
+            const ground = new Container();
+            ground.zIndex = -1000;
+            world.addChild(ground);
+            const worldW = room.state.worldWidth || 2000;
+            const worldH = room.state.worldHeight || 2000;
+            const tileSize = 16;
+            const cols = Math.ceil(worldW / tileSize);
+            const rows = Math.ceil(worldH / tileSize);
+            const candidateIndices = loadedAssets.tiles.slice(0, 40).map((_, i) => i);
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const idx = candidateIndices[(x * 13 + y * 7) % candidateIndices.length];
+                    const tex = loadedAssets.tiles[idx];
+                    const s = new Sprite(tex);
+                    s.x = x * tileSize;
+                    s.y = y * tileSize;
+                    s.anchor.set(0);
+                    ground.addChild(s);
+                }
+            }
+        }
         const currentPlayerId = room.sessionId;
 
         const $$ = getStateCallbacks(room);
@@ -140,11 +227,27 @@ async function main() {
 
             // Track previous health for damage/heal numbers
             let previousHealth = player.health;
-            
+
             // Setup change listeners
             const callbacks = [
-                $$(player).listen("x", (newValue) => { playerVisual.movement.targetX = newValue; }),
-                $$(player).listen("y", (newValue) => { playerVisual.movement.targetY = newValue; }),
+                $$(player).listen("x", (newValue) => {
+                    const m = playerVisual.movement;
+                    m.lerpFromX = m.x;
+                    m.lerpFromY = m.y;
+                    m.targetX = newValue;
+                    m.lerpStart = performance.now();
+                    m.lastServerUpdate = m.lerpStart;
+                    m.predicted = false;
+                }),
+                $$(player).listen("y", (newValue) => {
+                    const m = playerVisual.movement;
+                    m.lerpFromX = m.x;
+                    m.lerpFromY = m.y;
+                    m.targetY = newValue;
+                    m.lerpStart = performance.now();
+                    m.lastServerUpdate = m.lerpStart;
+                    m.predicted = false;
+                }),
                 $$(player).listen("health", (newValue) => {
                     const healthDiff = newValue - previousHealth;
                     playerVisual.smooth.targetHealth = newValue;
@@ -171,7 +274,7 @@ async function main() {
                 $$(player).listen("maxMana", (newValue) => { playerVisual.smooth.maxMana = newValue; }),
                 $$(player).listen("name", (newValue) => { playerVisual.nameText.text = newValue; })
             ];
-            
+
             playersUnCallback.set(sessionId, callbacks);
 
             // Update current player UI
@@ -211,16 +314,13 @@ async function main() {
                     spawnCastCircle(world, from.x, from.y, 0xff6600);
                     break;
                 case 'heal':
-                    spawnCastCircle(world, from.x, from.y, 0x22ff88, 24, 350);
+                    spawnHealEffect(world, from.x, from.y);
                     break;
                 case 'shield':
-                    attachTimedAura(casterVisual, 0x44aaff, 5000);
-                    spawnCastCircle(world, from.x, from.y, 0x3399ff, 26, 400);
+                    spawnShieldEffect(casterVisual, 5000);
                     break;
                 case 'dash':
-                    // Dash trail start marker
-                    attachDashTrail(casterVisual, 1500);
-                    spawnCastCircle(world, from.x, from.y, 0xffffff, 18, 200, 0.6);
+                    spawnDashEffect(casterVisual, 1500);
                     break;
             }
         });
@@ -271,8 +371,8 @@ async function main() {
                 const scaleX = minimap.width / worldW;
                 const scaleY = minimap.height / worldH;
                 const scale = Math.min(scaleX, scaleY);
-                const offsetX = (minimap.width - worldW * scale)/2;
-                const offsetY = (minimap.height - worldH * scale)/2;
+                const offsetX = (minimap.width - worldW * scale) / 2;
+                const offsetY = (minimap.height - worldH * scale) / 2;
                 // Convert minimap click -> world coords
                 const wx = (localX - offsetX) / scale;
                 const wy = (localY - offsetY) / scale;
@@ -289,17 +389,28 @@ async function main() {
             if (e.key === "ArrowUp") movement.y = -1;
             if (e.key === "ArrowDown") movement.y = 1;
 
-            if ((movement.x !== 0 || movement.y !== 0) && room) {
+            const me = players.get(currentPlayerId);
+            if ((movement.x !== 0 || movement.y !== 0) && room && (me?.movement.velocityX !== movement.x || me?.movement.velocityY !== movement.y)) {
+                console.log("Sending move command:", movement);
                 room.send("move", movement);
+                if (me) {
+                    me.movement.velocityX = movement.x;
+                    me.movement.velocityY = movement.y;
+                }
             }
         });
 
         window.addEventListener("keyup", (e) => {
             if (e.key === "ArrowLeft" || e.key === "ArrowRight") movement.x = 0;
             if (e.key === "ArrowUp" || e.key === "ArrowDown") movement.y = 0;
-            
+
             if (movement.x === 0 && movement.y === 0) {
                 room.send("move", { x: 0, y: 0 });
+                const me = players.get(currentPlayerId);
+                if (me) {
+                    me.movement.velocityX = 0;
+                    me.movement.velocityY = 0;
+                }
             }
         });
 
@@ -308,15 +419,15 @@ async function main() {
             const rect = app.canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
-            
+
             // Find clicked player
             for (const [sessionId, playerVisual] of players.entries()) {
                 if (sessionId === currentPlayerId) continue;
-                
+
                 const dx = playerVisual.container.x - x;
                 const dy = playerVisual.container.y - y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 if (distance < 20) {
                     room.send("attack", { targetId: sessionId });
                     console.log("Attacking player:", sessionId);
@@ -342,11 +453,27 @@ async function main() {
                 // Redraw bars (cheap for low entity counts)
                 updateHealthBar(visual);
                 updateManaBar(visual);
-                // Movement smoothing
-                visual.movement.x += (visual.movement.targetX - visual.movement.x) * 0.35;
-                visual.movement.y += (visual.movement.targetY - visual.movement.y) * 0.35;
-                visual.container.x = visual.movement.x;
-                visual.container.y = visual.movement.y;
+                // Movement interpolation (time-based)
+                const mv = visual.movement;
+                const now = performance.now();
+                // Adaptive lerpDuration: time since last authoritative update * factor (clamped)
+                const interval = now - mv.lastServerUpdate;
+                mv.lerpDuration = Math.min(180, Math.max(60, interval * 0.9));
+                const elapsed = now - mv.lerpStart;
+                const tRaw = mv.lerpDuration > 0 ? elapsed / mv.lerpDuration : 1;
+                const t = Math.min(1, tRaw);
+                const eased = t < 1 ? 1 - (1 - t) * (1 - t) : 1; // ease-out quad
+                mv.x = mv.lerpFromX + (mv.targetX - mv.lerpFromX) * eased;
+                mv.y = mv.lerpFromY + (mv.targetY - mv.lerpFromY) * eased;
+                // If interpolation finished and we have a velocity, start light prediction until next server update
+                if (t >= 1 && (Math.abs(mv.velocityX) > 0 || Math.abs(mv.velocityY) > 0)) {
+                    mv.predicted = true;
+                    const predictDt = dtMs / 1000;
+                    mv.x += mv.velocityX * predictDt * 180; // approximate speed (tune)
+                    mv.y += mv.velocityY * predictDt * 180;
+                }
+                visual.container.x = mv.x;
+                visual.container.y = mv.y;
             });
 
             // Camera update
@@ -383,22 +510,40 @@ async function main() {
                 const dy = p.y - visual.anim.lastY;
                 visual.anim.lastX = p.x;
                 visual.anim.lastY = p.y;
-                const moving = Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01;
-                if (!moving) {
-                    visual.anim.frame = 0;
-                    updateSpriteFrame(visual);
-                } else {
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        visual.anim.direction = dx > 0 ? 'right' : 'left';
-                    } else {
-                        visual.anim.direction = dy > 0 ? 'down' : 'up';
-                    }
-                    visual.anim.elapsed += dtMs;
-                    if (visual.anim.elapsed >= visual.anim.speed) {
-                        visual.anim.elapsed = 0;
-                        visual.anim.frame = (visual.anim.frame + 1) % PLAYER_FRAMES_PER_DIR;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    visual.anim.direction = dx > 0 ? 'right' : 'left';
+                } else if (Math.abs(dy) > 0.01) {
+                    visual.anim.direction = dy > 0 ? 'down' : 'up';
+                }
+                const loaded = getLoadedAssets();
+                if (!loaded.player) {
+                    const moving = Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01;
+                    if (!moving) {
+                        visual.anim.frame = 0;
                         updateSpriteFrame(visual);
+                    } else {
+                        visual.anim.elapsed += dtMs;
+                        if (visual.anim.elapsed >= visual.anim.speed) {
+                            visual.anim.elapsed = 0;
+                            visual.anim.frame = (visual.anim.frame + 1) % PLAYER_FRAMES_PER_DIR;
+                            updateSpriteFrame(visual);
+                        }
                     }
+                }
+                // If using LPC wrapper container, call its internal update
+                const lpcContainer = visual.container.children.find(c => c instanceof LpcPlayerSprite) as LpcPlayerSprite | undefined;
+                if (lpcContainer) {
+                    // speed scale from current velocity magnitude (predicted or smoothing diff)
+                    const mv = visual.movement;
+                    const vx = mv.predicted ? mv.velocityX * 180 : (mv.targetX - mv.lerpFromX) / Math.max(1, mv.lerpDuration / 1000);
+                    const vy = mv.predicted ? mv.velocityY * 180 : (mv.targetY - mv.lerpFromY) / Math.max(1, mv.lerpDuration / 1000);
+                    const speed = Math.sqrt(vx * vx + vy * vy);
+                    const walkSpeed = 180; // baseline speed mapping to animationSpeed base
+                    (lpcContainer as any).options.getSpeedScale = () => Math.min(2.2, Math.max(0.4, speed / walkSpeed));
+                    (lpcContainer as any).options.getAction = () => visual.action;
+                    (lpcContainer as any).options.getMoving = () => speed > 2;
+                    visual.action = speed > 2 ? 'walk' : 'idle';
+                    lpcContainer.update(dtMs / 1000);
                 }
             });
 
@@ -431,11 +576,34 @@ function createPlayerVisual(player: Player, isCurrentPlayer: boolean): PlayerVis
     graphics.fill(0xffffff);
     graphics.alpha = 0;
 
-    // Spritesheet base texture
-    const sprite = new Sprite(getFrameTexture('down', 0));
-    sprite.anchor.set(0.5);
-    sprite.scale.set(1.5);
-    sprite.tint = isCurrentPlayer ? 0xff6666 : 0x66ff66;
+    // Choose sprite implementation: if external sheet loaded, create LpcPlayerSprite wrapper.
+    let sprite: Sprite | undefined;
+    const loaded = getLoadedAssets();
+    if (loaded.player) {
+        // Direction mapping: we keep same ordering; adapt size scaling (LPC 64 -> scale down)
+        const lpc = new LpcPlayerSprite({
+            sheet: loaded.player,
+            getDirection: () => {
+                return 0; // placeholder replaced after visual defined
+            },
+            getMoving: () => false,
+            getAction: () => 'idle',
+            animationSpeed: 10
+        });
+        lpc.scale.set(0.75); // adjust size vs procedural
+        sprite = new Sprite(); // placeholder sprite replaced after visual object created
+        lpc.addChild(sprite);
+        // We'll replace container child after visual assembled
+        // For now just add placeholder; logic below will finalize
+        container.addChild(lpc);
+    } else {
+        // Fallback procedural sprite
+        sprite = new Sprite(getFrameTexture('down', 0));
+        sprite.anchor.set(0.5);
+        sprite.scale.set(1.5);
+        sprite.tint = isCurrentPlayer ? 0xff6666 : 0x66ff66;
+        container.addChild(sprite);
+    }
 
     // UI container above sprite
     const uiContainer = new Container();
@@ -454,7 +622,7 @@ function createPlayerVisual(player: Player, isCurrentPlayer: boolean): PlayerVis
     // Effects container for floating text
     const effectsContainer = new Container();
 
-    container.addChild(sprite);
+    // sprite added above depending on implementation
     container.addChild(graphics);
     uiContainer.addChild(healthBar);
     uiContainer.addChild(manaBar);
@@ -470,7 +638,7 @@ function createPlayerVisual(player: Player, isCurrentPlayer: boolean): PlayerVis
         container.cursor = 'pointer';
     }
 
-    const visual: PlayerVisual = { 
+    const visual: PlayerVisual = {
         container, graphics, sprite, nameText, healthBar, manaBar, effectsContainer, uiContainer,
         anim: { direction: 'down', frame: 0, elapsed: 0, speed: 140, lastX: player.x, lastY: player.y },
         smooth: {
@@ -485,24 +653,58 @@ function createPlayerVisual(player: Player, isCurrentPlayer: boolean): PlayerVis
             x: player.x,
             y: player.y,
             targetX: player.x,
-            targetY: player.y
-        }
+            targetY: player.y,
+            lerpFromX: player.x,
+            lerpFromY: player.y,
+            lerpStart: performance.now(),
+            lerpDuration: 120, // ms interpolation window
+            lastServerUpdate: performance.now(),
+            predicted: false,
+            velocityX: 0,
+            velocityY: 0
+        },
+        action: 'idle'
     };
+    // If we have external player sheet, rewire direction & movement lambda inside LpcPlayerSprite instance
+    if (loaded.player) {
+        // Find the LpcPlayerSprite child
+        const lpcSpriteContainer = container.children.find(c => c instanceof LpcPlayerSprite) as LpcPlayerSprite | undefined;
+        if (lpcSpriteContainer) {
+            // Replace placeholder logic using closures referencing visual
+            (lpcSpriteContainer as any).options.getDirection = () => {
+                // Sheet row order (user confirmed): up(0), left(1), down(2), right(3)
+                switch (visual.anim.direction) {
+                    case 'up': return 0;
+                    case 'left': return 1;
+                    case 'down': return 2;
+                    case 'right': return 3;
+                    default: return 2; // default face down if unknown
+                }
+            };
+            (lpcSpriteContainer as any).options.getMoving = () => {
+                const dx = Math.abs(visual.movement.targetX - visual.movement.x);
+                const dy = Math.abs(visual.movement.targetY - visual.movement.y);
+                return dx > 0.2 || dy > 0.2;
+            };
+            // 9 frames per direction in this sheet
+            if (loaded.player) loaded.player.framesPerDirection = 9;
+        }
+    }
     updateHealthBar(visual);
     updateManaBar(visual);
     return visual;
 }
 
 // ---------- Skill Visual Helpers ----------
-function spawnFireballProjectile(world: Container, caster: PlayerVisual, from: {x:number,y:number}, to:{x:number,y:number}, onHit: () => void) {
+function spawnFireballProjectile(world: Container, caster: PlayerVisual, from: { x: number, y: number }, to: { x: number, y: number }, onHit: () => void) {
     const g = new Graphics();
     const radius = 6;
-    g.circle(0,0,radius).fill(0xff6600).stroke({width:2,color:0xffffff});
+    g.circle(0, 0, radius).fill(0xff6600).stroke({ width: 2, color: 0xffffff });
     g.x = from.x; g.y = from.y;
     world.addChild(g);
     const dx = to.x - from.x;
     const dy = to.y - from.y;
-    const dist = Math.max(1, Math.sqrt(dx*dx + dy*dy));
+    const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
     const speed = 360; // px per second
     const vx = dx / dist * speed;
     const vy = dy / dist * speed;
@@ -515,7 +717,7 @@ function spawnFireballProjectile(world: Container, caster: PlayerVisual, from: {
         // simple trail
         if (Math.random() < 0.4) {
             const puff = new Graphics();
-            puff.circle(0,0,2+Math.random()*2).fill(0xffaa55).alpha=0.8;
+            puff.circle(0, 0, 2 + Math.random() * 2).fill(0xffaa55).alpha = 0.8;
             puff.x = g.x; puff.y = g.y;
             world.addChild(puff);
             const puffStart = performance.now();
@@ -538,19 +740,19 @@ function spawnFireballProjectile(world: Container, caster: PlayerVisual, from: {
 }
 
 function spawnExplosionParticles(world: Container, x: number, y: number, count: number, color: number) {
-    for (let i=0;i<count;i++) {
+    for (let i = 0; i < count; i++) {
         const p = new Graphics();
-        p.circle(0,0,2+Math.random()*3).fill(color).alpha=1;
+        p.circle(0, 0, 2 + Math.random() * 3).fill(color).alpha = 1;
         p.x = x; p.y = y; world.addChild(p);
-        const angle = Math.random()*Math.PI*2;
-        const speed = 60 + Math.random()*120;
-        const vx = Math.cos(angle)*speed;
-        const vy = Math.sin(angle)*speed;
-        const life = 400 + Math.random()*300;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 60 + Math.random() * 120;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        const life = 400 + Math.random() * 300;
         const start = performance.now();
         const anim = () => {
             const dt = performance.now() - start;
-            const t = dt/1000;
+            const t = dt / 1000;
             p.x = x + vx * t * 0.05; // scaled down for visual compactness
             p.y = y + vy * t * 0.05;
             p.alpha = Math.max(0, 1 - dt / life);
@@ -559,38 +761,107 @@ function spawnExplosionParticles(world: Container, x: number, y: number, count: 
     }
 }
 
-function spawnCastCircle(world: Container, x:number,y:number,color:number,r=22,duration=300,startAlpha=0.9) {
+function spawnCastCircle(world: Container, x: number, y: number, color: number, r = 22, duration = 300, startAlpha = 0.9) {
     const g = new Graphics();
-    g.circle(0,0,r).stroke({width:2,color}).alpha=startAlpha;
-    g.x=x; g.y=y; world.addChild(g);
+    g.circle(0, 0, r).stroke({ width: 2, color }).alpha = startAlpha;
+    g.x = x; g.y = y; world.addChild(g);
     const start = performance.now();
     const anim = () => {
-        const dt = performance.now()-start;
-        g.alpha = Math.max(0, startAlpha * (1 - dt/duration));
-        g.scale.set(1 + dt/duration*0.3);
-        if (dt<duration) requestAnimationFrame(anim); else world.removeChild(g);
+        const dt = performance.now() - start;
+        g.alpha = Math.max(0, startAlpha * (1 - dt / duration));
+        g.scale.set(1 + dt / duration * 0.3);
+        if (dt < duration) requestAnimationFrame(anim); else world.removeChild(g);
+    }; anim();
+}
+
+// --- Enhanced Skill Effects ---
+function spawnHealEffect(world: Container, x: number, y: number) {
+    // Expanding soft ring + upward sparkle particles
+    spawnCastCircle(world, x, y, 0x33ff99, 26, 450, 0.95);
+    const ring = new Graphics();
+    ring.circle(0, 0, 18).fill({ color: 0x33ff99, alpha: 0.15 }).stroke({ width: 3, color: 0x99ffd9 }).alpha = 0.9;
+    ring.x = x; ring.y = y; world.addChild(ring);
+    const start = performance.now();
+    const life = 500;
+    const anim = () => {
+        const dt = performance.now() - start;
+        const t = dt / life;
+        ring.scale.set(1 + t * 0.8);
+        ring.alpha = Math.max(0, 0.9 * (1 - t));
+        if (dt < life) requestAnimationFrame(anim); else world.removeChild(ring);
+    }; anim();
+    // Sparkles
+    for (let i = 0; i < 18; i++) {
+        const p = new Graphics();
+        p.circle(0, 0, 2 + Math.random() * 2).fill(0x99ffe0).alpha = 1;
+        p.x = x + (Math.random() * 2 - 1) * 14;
+        p.y = y + (Math.random() * 2 - 1) * 10;
+        world.addChild(p);
+        const s = performance.now();
+        const plife = 600 + Math.random() * 300;
+        const vy = - (20 + Math.random() * 25) / 1000; // px/ms
+        const animP = () => {
+            const d = performance.now() - s;
+            p.y += vy * (d < plife ? 16 : 0);
+            p.alpha = Math.max(0, 1 - d / plife);
+            if (d < plife) requestAnimationFrame(animP); else world.removeChild(p);
+        }; animP();
+    }
+}
+
+function spawnShieldEffect(caster: PlayerVisual, duration: number) {
+    attachTimedAura(caster, 0x55b6ff, duration);
+    // Add a rotating hex shield
+    const hex = new Graphics();
+    const r = (PLAYER_FRAME_SIZE * 1.5) / 2 + 10;
+    hex.poly([0, -r, r * 0.86, -r * 0.5, r * 0.86, r * 0.5, 0, r, -r * 0.86, r * 0.5, -r * 0.86, -r * 0.5]).stroke({ width: 3, color: 0x55ccff }).alpha = 0.85;
+    caster.container.addChild(hex);
+    const start = performance.now();
+    const anim = () => {
+        const dt = performance.now() - start;
+        hex.rotation = dt / 1000; // slow spin
+        hex.alpha = 0.4 + 0.45 * Math.sin(dt / 250);
+        if (dt < duration) requestAnimationFrame(anim); else caster.container.removeChild(hex);
+    }; anim();
+}
+
+function spawnDashEffect(caster: PlayerVisual, duration: number) {
+    // Bright initial burst
+    spawnExplosionParticles(caster.container.parent as Container, caster.container.x, caster.container.y, 8, 0xffffff);
+    attachDashTrail(caster, duration);
+    // Directional streak (line) that quickly fades
+    const streak = new Graphics();
+    streak.rect(-4, -2, 8, 4).fill(0xffffff).alpha = 0.9;
+    caster.container.addChild(streak);
+    const start = performance.now();
+    const life = 200;
+    const anim = () => {
+        const dt = performance.now() - start;
+        streak.scale.x = 1 + dt / life * 4;
+        streak.alpha = Math.max(0, 0.9 * (1 - dt / life));
+        if (dt < life) requestAnimationFrame(anim); else caster.container.removeChild(streak);
     }; anim();
 }
 
 function attachTimedAura(visual: PlayerVisual, color: number, duration: number) {
     const aura = new Graphics();
-    aura.circle(0,0, (PLAYER_FRAME_SIZE*1.5)/2 + 6).stroke({width:3,color}).alpha=0.85;
+    aura.circle(0, 0, (PLAYER_FRAME_SIZE * 1.5) / 2 + 6).stroke({ width: 3, color }).alpha = 0.85;
     aura.zIndex = -1;
     visual.container.addChild(aura);
     const start = performance.now();
     const anim = () => {
-        const dt = performance.now()-start;
-        aura.alpha = 0.85 * (1 - dt/duration);
+        const dt = performance.now() - start;
+        aura.alpha = 0.85 * (1 - dt / duration);
         aura.rotation += 0.02;
-        if (dt<duration) requestAnimationFrame(anim); else visual.container.removeChild(aura);
+        if (dt < duration) requestAnimationFrame(anim); else visual.container.removeChild(aura);
     }; anim();
 }
 
 function attachDashTrail(visual: PlayerVisual, duration: number) {
     const start = performance.now();
     const spawnTrail = () => {
-        const dt = performance.now()-start;
-        if (dt>duration) return;
+        const dt = performance.now() - start;
+        if (dt > duration) return;
         if (visual.sprite) {
             const trail = new Sprite(visual.sprite.texture);
             trail.anchor.copyFrom(visual.sprite.anchor);
@@ -602,10 +873,10 @@ function attachDashTrail(visual: PlayerVisual, duration: number) {
             const tStart = performance.now();
             const life = 300;
             const fade = () => {
-                const d = performance.now()-tStart;
-                trail.alpha = Math.max(0, 0.5 * (1 - d/life));
-                trail.y -= 0.05 * d/16; // slight upward drift
-                if (d<life) requestAnimationFrame(fade); else visual.container.removeChild(trail);
+                const d = performance.now() - tStart;
+                trail.alpha = Math.max(0, 0.5 * (1 - d / life));
+                trail.y -= 0.05 * d / 16; // slight upward drift
+                if (d < life) requestAnimationFrame(fade); else visual.container.removeChild(trail);
             }; fade();
         }
         setTimeout(spawnTrail, 60); // spawn every 60ms
@@ -617,18 +888,18 @@ function updateHealthBar(visual: PlayerVisual) {
     const W = 44;
     const H = 5;
     visual.healthBar.clear();
-    visual.healthBar.rect(-W/2, 0, W, H).fill(0x222222);
+    visual.healthBar.rect(-W / 2, 0, W, H).fill(0x222222);
     const pct = visual.smooth.health / visual.smooth.maxHealth;
-    visual.healthBar.rect(-W/2, 0, W * pct, H).fill(0x00c040);
+    visual.healthBar.rect(-W / 2, 0, W * pct, H).fill(0x00c040);
 }
 
 function updateManaBar(visual: PlayerVisual) {
     const W = 44;
     const H = 4;
     visual.manaBar.clear();
-    visual.manaBar.rect(-W/2, 7, W, H).fill(0x222222);
+    visual.manaBar.rect(-W / 2, 7, W, H).fill(0x222222);
     const pct = visual.smooth.mana / visual.smooth.maxMana;
-    visual.manaBar.rect(-W/2, 7, W * pct, H).fill(0x0088ff);
+    visual.manaBar.rect(-W / 2, 7, W * pct, H).fill(0x0088ff);
 }
 
 // Simple particle spawners
@@ -691,16 +962,16 @@ function showFloatingText(visual: PlayerVisual, text: string, color: number) {
     floatingText.anchor.set(0.5, 0.5);
     floatingText.y = -30;
     floatingText.alpha = 1;
-    
+
     visual.effectsContainer.addChild(floatingText);
-    
+
     // Animate floating up and fading out
     let frame = 0;
     const animate = () => {
         frame++;
         floatingText.y -= 1;
         floatingText.alpha = Math.max(0, 1 - frame / 60);
-        
+
         if (frame < 60) {
             requestAnimationFrame(animate);
         } else {
@@ -725,7 +996,11 @@ function flashPlayer(visual: PlayerVisual, color: number) {
 
 function updateSpriteFrame(visual: PlayerVisual) {
     if (!visual.sprite) return;
-    visual.sprite.texture = getFrameTexture(visual.anim.direction, visual.anim.frame);
+    // If using external sheet, LpcPlayerSprite handles animation independently; only procedural update needed here.
+    const loaded = getLoadedAssets();
+    if (!loaded.player) {
+        visual.sprite.texture = getFrameTexture(visual.anim.direction, visual.anim.frame);
+    }
 }
 
 function createUI(container: HTMLElement) {
@@ -802,7 +1077,7 @@ function setupUIHandlers(room: Room<MyRoomState>, currentPlayerId: string) {
     // Chat input
     const chatInput = document.getElementById('chat-input') as HTMLInputElement;
     const chatSend = document.getElementById('chat-send') as HTMLButtonElement;
-    
+
     const sendChat = () => {
         const message = chatInput.value.trim();
         if (message) {
@@ -810,7 +1085,7 @@ function setupUIHandlers(room: Room<MyRoomState>, currentPlayerId: string) {
             chatInput.value = '';
         }
     };
-    
+
     chatSend?.addEventListener('click', sendChat);
     chatInput?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendChat();
@@ -820,17 +1095,17 @@ function setupUIHandlers(room: Room<MyRoomState>, currentPlayerId: string) {
     window.addEventListener('keypress', (e) => {
         const player = room.state.players.get(currentPlayerId);
         if (!player) return;
-        
+
         const skillMap: { [key: string]: number } = {
             '1': 0, '2': 1, '3': 2, '4': 3
         };
-        
+
         if (e.key in skillMap) {
             const skillIndex = skillMap[e.key];
             if (player.skills[skillIndex]) {
                 const skill = player.skills[skillIndex];
                 const cooldownRemaining = Math.max(0, skill.cooldown - (Date.now() - skill.lastUsed));
-                
+
                 if (cooldownRemaining === 0 && player.mana >= skill.manaCost) {
                     // For self-targeting skills like heal, target self
                     if (skill.id === 'heal' || skill.id === 'shield' || skill.id === 'dash') {
@@ -851,20 +1126,20 @@ function setupUIHandlers(room: Room<MyRoomState>, currentPlayerId: string) {
 function findNearestEnemy(players: any, currentPlayerId: string, currentPlayer: Player): string | null {
     let nearestId: string | null = null;
     let nearestDistance = Infinity;
-    
+
     players.forEach((player: Player, sessionId: string) => {
         if (sessionId === currentPlayerId) return;
-        
+
         const dx = player.x - currentPlayer.x;
         const dy = player.y - currentPlayer.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
+
         if (distance < nearestDistance) {
             nearestDistance = distance;
             nearestId = sessionId;
         }
     });
-    
+
     return nearestId;
 }
 
@@ -879,11 +1154,11 @@ function updatePlayerUI(player: Player) {
             </div>
             <div class="stat-row">
                 <span>生命: ${Math.round(player.health)}/${player.maxHealth}</span>
-                <div class="bar"><div class="bar-fill" style="width: ${(player.health/player.maxHealth*100)}%; background: #00ff00;"></div></div>
+                <div class="bar"><div class="bar-fill" style="width: ${(player.health / player.maxHealth * 100)}%; background: #00ff00;"></div></div>
             </div>
             <div class="stat-row">
                 <span>魔法: ${player.mana.toFixed(1)}/${player.maxMana}</span>
-                <div class="bar"><div class="bar-fill" style="width: ${(player.mana/player.maxMana*100)}%; background: #0088ff;"></div></div>
+                <div class="bar"><div class="bar-fill" style="width: ${(player.mana / player.maxMana * 100)}%; background: #0088ff;"></div></div>
             </div>
             <div class="stat-row">
                 <span>攻击: ${player.attack}</span>
@@ -897,9 +1172,9 @@ function updatePlayerUI(player: Player) {
             </div>
         `;
     }
-    
+
     updateSkillsUI(player);
-    
+
     // Update quests
     const questsList = document.getElementById('quests-list');
     if (questsList) {
@@ -911,7 +1186,7 @@ function updatePlayerUI(player: Player) {
             </div>
         `).join('') || '<div class="empty">暂无任务</div>';
     }
-    
+
     // Update achievements
     const achievementsList = document.getElementById('achievements-list');
     if (achievementsList) {
@@ -933,7 +1208,7 @@ function updateSkillsUI(player: Player) {
         'shield': '🛡️',
         'dash': '🏃'
     };
-    
+
     // Update skills
     const skillsList = document.getElementById('skills-list');
     if (skillsList) {
@@ -942,7 +1217,7 @@ function updateSkillsUI(player: Player) {
             const isReady = cooldownRemaining === 0 && player.mana >= skill.manaCost;
             const icon = skillIcons[skill.id] || '⚡';
             const cooldownPercent = cooldownRemaining > 0 ? ((skill.cooldown - cooldownRemaining) / skill.cooldown * 100) : 100;
-            
+
             // Build tooltip with skill details
             const tooltipParts = [skill.description || skill.name];
             if (skill.damage > 0) {
@@ -955,7 +1230,7 @@ function updateSkillsUI(player: Player) {
             tooltipParts.push(`冷却: ${skill.cooldown / 1000}秒`);
             tooltipParts.push(`魔法消耗: ${skill.manaCost}`);
             const tooltip = tooltipParts.join(' | ');
-            
+
             return `
                 <div class="skill ${isReady ? 'ready' : 'cooldown'}" title="${tooltip}">
                     ${cooldownRemaining > 0 ? `<div class="skill-cooldown-overlay" style="width: ${cooldownPercent}%"></div>` : ''}
@@ -963,7 +1238,7 @@ function updateSkillsUI(player: Player) {
                     <span class="skill-icon">${icon}</span>
                     <span class="skill-name">${skill.name}</span>
                     <span class="skill-cost">${skill.manaCost} 魔法</span>
-                    ${!isReady && cooldownRemaining > 0 ? `<span class="skill-cooldown">${(cooldownRemaining/1000).toFixed(1)}s</span>` : ''}
+                    ${!isReady && cooldownRemaining > 0 ? `<span class="skill-cooldown">${(cooldownRemaining / 1000).toFixed(1)}s</span>` : ''}
                 </div>
             `;
         }).join('');
@@ -974,15 +1249,15 @@ function updateSkillsUI(player: Player) {
 function updateHotbar(player: Player) {
     const hotbar = document.getElementById('hotbar');
     if (!hotbar) return;
-    const icons: Record<string,string> = { fireball:'🔥', heal:'💚', shield:'🛡️', dash:'🏃' };
+    const icons: Record<string, string> = { fireball: '🔥', heal: '💚', shield: '🛡️', dash: '🏃' };
     hotbar.innerHTML = player.skills.map((skill, idx) => {
         const cooldownRemaining = Math.max(0, skill.cooldown - (Date.now() - skill.lastUsed));
         const isReady = cooldownRemaining === 0 && player.mana >= skill.manaCost;
-        const cdText = cooldownRemaining > 0 ? (cooldownRemaining/1000).toFixed(1) : '';
-        return `<div class="hotbar-slot ${isReady? 'ready':'cooldown'}" data-skill="${skill.id}" title="${skill.name}">
-            <div class="key">${idx+1}</div>
-            <div class="ico">${icons[skill.id]||'⚡'}</div>
-            ${!isReady?`<div class="overlay"></div><div class="cd">${cdText}</div>`:''}
+        const cdText = cooldownRemaining > 0 ? (cooldownRemaining / 1000).toFixed(1) : '';
+        return `<div class="hotbar-slot ${isReady ? 'ready' : 'cooldown'}" data-skill="${skill.id}" title="${skill.name}">
+            <div class="key">${idx + 1}</div>
+            <div class="ico">${icons[skill.id] || '⚡'}</div>
+            ${!isReady ? `<div class="overlay"></div><div class="cd">${cdText}</div>` : ''}
         </div>`;
     }).join('');
 }
@@ -994,7 +1269,7 @@ function renderMinimap(room: Room<MyRoomState>, players: Map<string, PlayerVisua
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const w = canvas.width, h = canvas.height;
-    ctx.clearRect(0,0,w,h);
+    ctx.clearRect(0, 0, w, h);
     const worldW = room.state.worldWidth || 2000;
     const worldH = room.state.worldHeight || 2000;
     // Fit entire world inside minimap (no center-on-player, full map) OR keep centered mode. We will show full map then draw view rect.
@@ -1005,9 +1280,9 @@ function renderMinimap(room: Room<MyRoomState>, players: Map<string, PlayerVisua
     const offsetY = (h - worldH * scale) / 2;
     // Background & border
     ctx.fillStyle = 'rgba(20,20,20,0.6)';
-    ctx.fillRect(0,0,w,h);
+    ctx.fillRect(0, 0, w, h);
     ctx.strokeStyle = '#666';
-    ctx.strokeRect(0.5,0.5,w-1,h-1);
+    ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
 
     const me = room.state.players.get(currentId);
     // Vision cone for current player
@@ -1016,21 +1291,21 @@ function renderMinimap(room: Room<MyRoomState>, players: Map<string, PlayerVisua
         const dir = pv?.anim.direction || 'down';
         let angle = 0; // radians
         switch (dir) {
-            case 'up': angle = -Math.PI/2; break;
-            case 'down': angle = Math.PI/2; break;
+            case 'up': angle = -Math.PI / 2; break;
+            case 'down': angle = Math.PI / 2; break;
             case 'left': angle = Math.PI; break;
             case 'right': angle = 0; break;
         }
         const coneRange = 250; // world units
-        const coneHalfAngle = Math.PI/6; // 30 deg
+        const coneHalfAngle = Math.PI / 6; // 30 deg
         const px = offsetX + me.x * scale;
         const py = offsetY + me.y * scale;
         ctx.beginPath();
         ctx.moveTo(px, py);
         ctx.fillStyle = 'rgba(0,255,120,0.15)';
         const steps = 12;
-        for (let i=0;i<=steps;i++) {
-            const a = angle - coneHalfAngle + (i/steps)*(coneHalfAngle*2);
+        for (let i = 0; i <= steps; i++) {
+            const a = angle - coneHalfAngle + (i / steps) * (coneHalfAngle * 2);
             const sx = px + Math.cos(a) * coneRange * scale;
             const sy = py + Math.sin(a) * coneRange * scale;
             ctx.lineTo(sx, sy);
@@ -1046,7 +1321,7 @@ function renderMinimap(room: Room<MyRoomState>, players: Map<string, PlayerVisua
         const my = offsetY + p.y * scale;
         ctx.fillStyle = id === currentId ? '#0f8' : '#f55';
         ctx.beginPath();
-        ctx.arc(mx, my, id===currentId?4:3, 0, Math.PI*2);
+        ctx.arc(mx, my, id === currentId ? 4 : 3, 0, Math.PI * 2);
         ctx.fill();
     });
 
@@ -1074,7 +1349,7 @@ function addChatMessage(sender: string, message: string, channel: string) {
         msgEl.innerHTML = `<span class="sender">${sender}:</span> <span class="message">${message}</span>`;
         messagesEl.appendChild(msgEl);
         messagesEl.scrollTop = messagesEl.scrollHeight;
-        
+
         // Keep only last 50 messages
         while (messagesEl.children.length > 50) {
             messagesEl.removeChild(messagesEl.firstChild!);

@@ -25,5 +25,5 @@
     "noUncheckedSideEffectImports": true
   },
   "include": ["src"],
-  "exclude": ["src/command/*"]
+  "exclude": ["src/command/*","node_modules" ,"public" ,"dist","dist-mock"]
 }

@@ -1,0 +1,29 @@
+{
+  "outputDir": "../../client/public/assets/oga",
+  "concurrency": 3,
+  "userAgent": "MMOAssetFetcher/0.1 (+https://example.com)",
+  "assets": [
+    {
+      "id": "lpc_base",
+      "type": "zip",
+      "source": "opengameart",
+      "url": "https://opengameart.org/sites/default/files/LPC%20Base%20Assets.zip",
+      "license": "CC-BY-SA 3.0",
+      "pathFilters": ["characters", ".png"],
+      "post": [
+        { "action": "extractFrames", "frameWidth": 64, "frameHeight": 64, "pattern": "male_walkcycle", "directionOrder": ["down","left","right","up"], "directionBlockSize": 8, "mode": "meta" }
+      ]
+    },
+    {
+      "id": "kenney_monochrome_pirates",
+      "type": "zip",
+      "source": "direct",
+      "url": "https://static.kenney.nl/assets/monochrome-pirates.zip",
+      "license": "CC0 1.0",
+      "pathFilters": ["PNG", ".png"],
+      "post": [
+        { "action": "extractFrames", "frameWidth": 16, "frameHeight": 16, "pattern": "tilesheet|pirate|ship|object", "mode": "files" }
+      ]
+    }
+  ]
+}

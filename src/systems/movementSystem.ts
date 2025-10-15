@@ -11,7 +11,7 @@ export const movementSystem = (world: World<Entity>) => {
   const maxX = worldBounds.width;
   const maxY = worldBounds.height;
   for (const { position, velocity } of entities) {
-    position.x = Math.min(maxX, Math.max(0, position.x + velocity.x));
-    position.y = Math.min(maxY, Math.max(0, position.y + velocity.y));
+    position.x = Math.min(maxX, Math.max(0, position.x + velocity.x*10));
+    position.y = Math.min(maxY, Math.max(0, position.y + velocity.y*10));
   }
 };
