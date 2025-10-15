@@ -193,11 +193,19 @@ node validate-assets.cjs
 
 ## 许可证 / License
 
-**当前占位符资源 / Current Placeholder Assets**:
+**当前增强占位符资源 / Current Enhanced Placeholder Assets**:
 - **许可证 / License**: CC0 1.0 Universal (Public Domain)
+- **质量 / Quality**: Enhanced professional placeholders with advanced visual effects
 - **版权 / Copyright**: 无版权限制 / No copyright restrictions
 - **使用范围 / Usage**: 可自由用于任何目的 / Free for any purpose
 - **署名要求 / Attribution**: 不需要 / Not required
+- **改进 / Enhancements**: 
+  - ✓ Detailed shading and gradients (详细阴影和渐变)
+  - ✓ Professional glow effects (专业发光效果)
+  - ✓ Realistic textures (真实纹理)
+  - ✓ Metallic shading (金属光泽)
+  - ✓ Character facial features (角色面部特征)
+  - ✓ Particle effects (粒子效果)
 
 ## 生产环境推荐 / Production Recommendations
 
