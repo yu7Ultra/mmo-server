@@ -12,6 +12,7 @@ This server includes essential MMO features:
 - ✅ **Leaderboard**: Top 10 player rankings
 - ✅ **Chat System**: Rate-limited chat with profanity filtering
 - ✅ **Social System**: Friend management
+- ✅ **Voice Communication**: WebRTC-based voice channels with peer-to-peer audio
 - ✅ **Security**: Rate limiting, input validation, and XSS protection
 - ✅ **Performance**: Object pooling, efficient ECS queries, minimal GC
 
@@ -74,6 +75,12 @@ The server accepts the following client messages:
 | `chat` | `{ message: string, channel?: string }` | Send chat message |
 | `quest` | `{ questId: string, action: 'abandon' }` | Manage quests |
 | `friend` | `{ targetId: string, action: 'add'\|'remove' }` | Manage friends |
+| `voice:join` | `{ channelId: string }` | Join voice channel |
+| `voice:leave` | `{}` | Leave current voice channel |
+| `voice:create` | `{ name: string, type: string, maxMembers?: number }` | Create new voice channel |
+| `voice:mute` | `{ muted: boolean }` | Toggle mute status |
+| `voice:deafen` | `{ deafened: boolean }` | Toggle deafen status |
+| `voice:signal` | `{ to: string, type: string, data: any }` | WebRTC signaling relay |
 
 All messages are rate-limited for security.
 

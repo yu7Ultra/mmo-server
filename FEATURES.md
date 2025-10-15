@@ -208,6 +208,7 @@ Enhanced player properties:
 - **Quests**: Array of active/completed quests
 - **Achievements**: Array of unlocked achievements
 - **Social**: Array of friend IDs
+- **Voice**: currentVoiceChannel, voiceMuted, voiceDeafened
 - **Statistics**: kills, deaths, damageDealt, damageTaken
 
 ## Message Handlers
@@ -259,11 +260,91 @@ Comprehensive test coverage for all systems:
 - Achievement system (7 tests)
 - Chat system (8 tests)
 - Security utilities (14 tests)
+- Voice channel system (28 tests)
 
 Run tests:
 ```bash
 yarn test
 ```
+
+## 9. Voice Communication System
+
+**Location**: `src/systems/voiceChannelSystem.ts`
+
+WebRTC-based voice communication with multiple channel types:
+
+**Features**:
+- Multiple channel types (global, proximity, group, private)
+- WebRTC signaling relay
+- Mute/deafen controls
+- Dynamic channel creation
+- Member management
+- Rate limiting for voice actions and signaling
+
+**Channel Types**:
+- **Global**: Server-wide voice (max 100 members)
+- **Group**: Team/guild voice (configurable max members)
+- **Private**: Direct calls (small groups)
+- **Proximity**: Spatial voice based on player distance
+
+**Usage**:
+```typescript
+// Join global voice channel
+room.send('voice:join', { channelId: 'global' });
+
+// Create team voice channel
+room.send('voice:create', {
+  name: 'Team Alpha',
+  type: 'group',
+  maxMembers: 10
+});
+
+// Mute/unmute
+room.send('voice:mute', { muted: true });
+
+// WebRTC signaling
+room.send('voice:signal', {
+  to: 'peer_session_id',
+  type: 'offer',
+  data: webrtcOffer
+});
+
+// Leave channel
+room.send('voice:leave');
+```
+
+**Client Integration**:
+```typescript
+// Listen for voice channel members
+room.state.voiceChannels.onAdd((channel, channelId) => {
+  channel.members.onAdd((member, sessionId) => {
+    // Setup WebRTC peer connection
+    if (sessionId !== room.sessionId) {
+      createPeerConnection(sessionId);
+    }
+  });
+});
+
+// Handle signaling
+room.onMessage('voice:signal', handleWebRTCSignal);
+```
+
+**Performance**:
+- Peer-to-peer audio (no server relay)
+- Minimal server overhead (signaling only)
+- Rate limiting: 30 actions/5s, 100 signals/20s
+- Auto-cleanup of empty channels
+
+**Security**:
+- Rate limiting on all voice operations
+- Channel ID validation
+- Owner-only channel deletion
+- Signaling only between channel members
+- End-to-end encryption via WebRTC (DTLS-SRTP)
+
+**Documentation**:
+- Full integration guide: [VOICE_INTEGRATION.md](./VOICE_INTEGRATION.md)
+- Client examples: [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md)
 
 ## Configuration
 
