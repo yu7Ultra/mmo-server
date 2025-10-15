@@ -36,6 +36,13 @@ describe('Skill System', () => {
     expect(player.skills[3].id).toBe('dash');
   });
 
+  test('should initialize skills with descriptions', () => {
+    expect(player.skills[0].description).toBe('发射火球攻击敌人');
+    expect(player.skills[1].description).toBe('恢复生命值');
+    expect(player.skills[2].description).toBe('获得护盾防御加成');
+    expect(player.skills[3].description).toBe('短暂提升移动速度');
+  });
+
   test('should use skill when mana available and no cooldown', () => {
     const target = world.add({
       sessionId: 'target',

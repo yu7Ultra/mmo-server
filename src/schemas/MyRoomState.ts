@@ -13,6 +13,7 @@ export class EquipmentItem extends Schema {
 export class Skill extends Schema {
   @type('string') id: string = '';
   @type('string') name: string = '';
+  @type('string') description: string = '';
   @type('number') level: number = 1;
   @type('number') cooldown: number = 0; // milliseconds
   @type('number') lastUsed: number = 0; // timestamp
