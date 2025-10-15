@@ -11,7 +11,7 @@ import { inputSystem } from '../systems/inputSystem';
 import { LeaderboardManager } from '../systems/leaderboardSystem';
 import { movementSystem, setWorldBounds } from '../systems/movementSystem';
 import { abandonQuest, grantQuest, initializeStarterQuests, questSystem, updateQuestProgress } from '../systems/questSystem';
-import { buffSystem, initializeDefaultSkills, skillSystem, useSkill } from '../systems/skillSystem';
+import { buffSystem, initializeDefaultSkills, initializeSkillSystem, skillSystem, useSkill } from '../systems/skillSystem';
 import { syncSystem } from '../systems/syncSystem';
 import { VoiceChannelManager } from '../systems/voiceChannelSystem';
 import { RateLimiter, InputValidator } from '../utils/security';
@@ -35,6 +35,10 @@ export class MyRoom extends Room<MyRoomState> {
 
   onCreate(options: any) {
     this.state = new MyRoomState();
+    
+    // Initialize configuration-based systems
+    initializeSkillSystem();
+    
   // Configure world bounds (could be env-configurable later)
   setWorldBounds(this.state.worldWidth, this.state.worldHeight);
     

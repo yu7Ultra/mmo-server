@@ -1,0 +1,99 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-10-15T16:00:00Z",
+  "skills": {
+    "fireball": {
+      "id": "fireball",
+      "name": "Fireball",
+      "nameZh": "火球术",
+      "description": "Launch a fireball dealing fire damage to target",
+      "descriptionZh": "发射火球攻击敌人",
+      "type": "damage",
+      "level": 1,
+      "cooldown": 3000,
+      "manaCost": 20,
+      "range": 200,
+      "effects": [
+        {
+          "type": "damage",
+          "value": 30,
+          "element": "fire",
+          "target": "target",
+          "scaling": {
+            "stat": "attack",
+            "multiplier": 0.5
+          }
+        }
+      ],
+      "icon": "skills/fireball.png",
+      "animation": "cast_fireball"
+    },
+    "heal": {
+      "id": "heal",
+      "name": "Heal",
+      "nameZh": "治疗术",
+      "description": "Restore health to yourself",
+      "descriptionZh": "恢复生命值",
+      "type": "heal",
+      "level": 1,
+      "cooldown": 5000,
+      "manaCost": 30,
+      "range": 0,
+      "effects": [
+        {
+          "type": "heal",
+          "value": 40,
+          "target": "self"
+        }
+      ],
+      "icon": "skills/heal.png",
+      "animation": "cast_heal"
+    },
+    "shield": {
+      "id": "shield",
+      "name": "Shield",
+      "nameZh": "护盾",
+      "description": "Grant defensive buff increasing defense",
+      "descriptionZh": "获得护盾防御加成",
+      "type": "buff",
+      "level": 1,
+      "cooldown": 10000,
+      "manaCost": 25,
+      "range": 0,
+      "effects": [
+        {
+          "type": "buff",
+          "buffType": "defense",
+          "value": 10,
+          "duration": 5000,
+          "target": "self"
+        }
+      ],
+      "icon": "skills/shield.png",
+      "animation": "cast_shield"
+    },
+    "dash": {
+      "id": "dash",
+      "name": "Dash",
+      "nameZh": "冲刺",
+      "description": "Temporarily increase movement speed",
+      "descriptionZh": "短暂提升移动速度",
+      "type": "buff",
+      "level": 1,
+      "cooldown": 4000,
+      "manaCost": 15,
+      "range": 0,
+      "effects": [
+        {
+          "type": "buff",
+          "buffType": "speed",
+          "multiplier": 2.0,
+          "duration": 2000,
+          "target": "self"
+        }
+      ],
+      "icon": "skills/dash.png",
+      "animation": "cast_dash"
+    }
+  }
+}
