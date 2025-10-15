@@ -104,6 +104,14 @@ async function main() {
             updateLeaderboard(room.state.leaderboard);
         });
 
+        // Periodic UI updates for cooldowns
+        setInterval(() => {
+            const myPlayer = room.state.players.get(currentPlayerId);
+            if (myPlayer) {
+                updateSkillsUI(myPlayer);
+            }
+        }, 100); // Update every 100ms for smooth cooldown display
+
         // Movement controls
         const movement = { x: 0, y: 0 };
         window.addEventListener("keydown", (e) => {
@@ -162,6 +170,12 @@ function createPlayerVisual(player: Player, isCurrentPlayer: boolean): PlayerVis
     graphics.circle(0, 0, 10);
     graphics.fill(color);
     
+    // Combat indicator (initially hidden)
+    if (!isCurrentPlayer) {
+        graphics.lineStyle(2, 0xff0000, 0);
+        graphics.circle(0, 0, 15);
+    }
+    
     // Name text
     const nameText = new Text({
         text: player.name,
@@ -189,6 +203,12 @@ function createPlayerVisual(player: Player, isCurrentPlayer: boolean): PlayerVis
     container.addChild(manaBar);
     container.x = player.x;
     container.y = player.y;
+    
+    // Make enemy players interactive
+    if (!isCurrentPlayer) {
+        container.eventMode = 'static';
+        container.cursor = 'pointer';
+    }
     
     const visual = { container, graphics, nameText, healthBar, manaBar };
     updateHealthBar(visual, player);
@@ -220,6 +240,14 @@ function createUI(container: HTMLElement) {
         <div id="game-container">
             <div id="game-canvas"></div>
             <div id="ui-overlay">
+                <div id="controls-panel" class="panel">
+                    <h3>控制说明</h3>
+                    <div class="controls-info">
+                        <div>↑↓←→ 移动</div>
+                        <div>1-4 使用技能</div>
+                        <div>点击敌人攻击</div>
+                    </div>
+                </div>
                 <div id="player-stats" class="panel">
                     <h3>玩家状态</h3>
                     <div id="player-info"></div>
@@ -351,22 +379,7 @@ function updatePlayerUI(player: Player) {
         `;
     }
     
-    // Update skills
-    const skillsList = document.getElementById('skills-list');
-    if (skillsList) {
-        skillsList.innerHTML = player.skills.map((skill, idx) => {
-            const cooldownRemaining = Math.max(0, skill.cooldown - (Date.now() - skill.lastUsed));
-            const isReady = cooldownRemaining === 0 && player.mana >= skill.manaCost;
-            return `
-                <div class="skill ${isReady ? 'ready' : 'cooldown'}">
-                    <span class="skill-key">${idx + 1}</span>
-                    <span class="skill-name">${skill.name}</span>
-                    <span class="skill-cost">${skill.manaCost} 魔法</span>
-                    ${!isReady ? `<span class="skill-cooldown">${(cooldownRemaining/1000).toFixed(1)}s</span>` : ''}
-                </div>
-            `;
-        }).join('');
-    }
+    updateSkillsUI(player);
     
     // Update quests
     const questsList = document.getElementById('quests-list');
@@ -390,6 +403,25 @@ function updatePlayerUI(player: Player) {
                 <div class="achievement-desc">${achievement.description}</div>
             </div>
         `).join('') || '<div class="empty">暂无成就</div>';
+    }
+}
+
+function updateSkillsUI(player: Player) {
+    // Update skills
+    const skillsList = document.getElementById('skills-list');
+    if (skillsList) {
+        skillsList.innerHTML = player.skills.map((skill, idx) => {
+            const cooldownRemaining = Math.max(0, skill.cooldown - (Date.now() - skill.lastUsed));
+            const isReady = cooldownRemaining === 0 && player.mana >= skill.manaCost;
+            return `
+                <div class="skill ${isReady ? 'ready' : 'cooldown'}">
+                    <span class="skill-key">${idx + 1}</span>
+                    <span class="skill-name">${skill.name}</span>
+                    <span class="skill-cost">${skill.manaCost} 魔法</span>
+                    ${!isReady && cooldownRemaining > 0 ? `<span class="skill-cooldown">${(cooldownRemaining/1000).toFixed(1)}s</span>` : ''}
+                </div>
+            `;
+        }).join('');
     }
 }
 

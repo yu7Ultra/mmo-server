@@ -314,3 +314,17 @@ body {
   text-align: center;
   padding: 10px;
 }
+
+.controls-info {
+  font-size: 11px;
+  color: #ccc;
+}
+
+.controls-info > div {
+  padding: 4px 0;
+  border-bottom: 1px solid #333;
+}
+
+.controls-info > div:last-child {
+  border-bottom: none;
+}
