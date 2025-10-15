@@ -77,6 +77,11 @@ export class Player extends Schema {
   // Social
   @type(['string']) friends = new ArraySchema<string>();
   
+  // Voice communication
+  @type('string') currentVoiceChannel: string = ''; // Current voice channel ID
+  @type('boolean') voiceMuted: boolean = false;
+  @type('boolean') voiceDeafened: boolean = false;
+  
   // Stats tracking
   @type('number') kills: number = 0;
   @type('number') deaths: number = 0;
@@ -101,9 +106,39 @@ export class LeaderboardEntry extends Schema {
   @type('number') rank: number = 0;
 }
 
+// Voice channel member
+export class VoiceChannelMember extends Schema {
+  @type('string') sessionId: string = '';
+  @type('string') playerName: string = '';
+  @type('boolean') muted: boolean = false;
+  @type('boolean') deafened: boolean = false;
+  @type('number') joinedAt: number = 0;
+}
+
+// Voice channel
+export class VoiceChannel extends Schema {
+  @type('string') id: string = '';
+  @type('string') name: string = '';
+  @type('string') type: string = 'global'; // global, proximity, group, private
+  @type({ map: VoiceChannelMember }) members = new MapSchema<VoiceChannelMember>();
+  @type('number') maxMembers: number = 50;
+  @type('number') createdAt: number = Date.now();
+  @type('string') ownerId: string = ''; // For group/private channels
+}
+
+// WebRTC signaling message
+export class VoiceSignal extends Schema {
+  @type('string') from: string = '';
+  @type('string') to: string = '';
+  @type('string') type: string = ''; // offer, answer, ice-candidate
+  @type('string') data: string = ''; // JSON-encoded signaling data
+  @type('number') timestamp: number = Date.now();
+}
+
 export class MyRoomState extends Schema {
   @type({ map: Player }) players = new MapSchema<Player>();
   @type([ChatMessage]) chatMessages = new ArraySchema<ChatMessage>();
   @type([LeaderboardEntry]) leaderboard = new ArraySchema<LeaderboardEntry>();
+  @type({ map: VoiceChannel }) voiceChannels = new MapSchema<VoiceChannel>();
   @type('number') serverTime: number = Date.now();
 }

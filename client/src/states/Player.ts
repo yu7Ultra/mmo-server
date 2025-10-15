@@ -32,6 +32,9 @@ export class Player extends Schema {
     @type([ Quest ]) public quests: ArraySchema<Quest> = new ArraySchema<Quest>();
     @type([ Achievement ]) public achievements: ArraySchema<Achievement> = new ArraySchema<Achievement>();
     @type([ "string" ]) public friends: ArraySchema<string> = new ArraySchema<string>();
+    @type("string") public currentVoiceChannel!: string;
+    @type("boolean") public voiceMuted!: boolean;
+    @type("boolean") public voiceDeafened!: boolean;
     @type("number") public kills!: number;
     @type("number") public deaths!: number;
     @type("number") public damageDealt!: number;
