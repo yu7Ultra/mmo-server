@@ -1,10 +1,10 @@
-# Voice Communication Client Example
+# 语音通讯客户端示例
 
-This is a complete working example of integrating voice communication into a web-based MMO client.
+这是一个将语音通讯集成到基于 Web 的 MMO 客户端的完整工作示例。
 
-## Quick Start
+## 快速开始
 
-### 1. Server Setup
+### 1. 服务器设置
 ```bash
 # Start the server
 yarn install
@@ -12,9 +12,9 @@ yarn build
 yarn start
 ```
 
-### 2. Client Usage
+### 2. 客户端使用
 
-Create an HTML file with this code:
+使用以下代码创建一个 HTML 文件:
 
 ```html
 <!DOCTYPE html>
@@ -441,7 +441,7 @@ Create an HTML file with this code:
 </html>
 ```
 
-## How It Works
+## 工作原理
 
 ### 1. Connection
 - Connects to Colyseus server on ws://localhost:2567
@@ -484,7 +484,7 @@ Create an HTML file with this code:
 ✅ ICE candidate exchange
 ✅ Connection state monitoring
 
-## Browser Requirements
+## 浏览器要求
 
 - Chrome 56+
 - Firefox 52+
@@ -493,7 +493,7 @@ Create an HTML file with this code:
 
 All require HTTPS in production (except localhost).
 
-## Production Considerations
+## 生产环境考虑
 
 ### HTTPS Required
 WebRTC requires HTTPS in production (getUserMedia restriction).
@@ -526,7 +526,7 @@ document.addEventListener('click', () => {
 });
 ```
 
-## Troubleshooting
+## 故障排除
 
 ### No Audio
 1. Check microphone permissions in browser

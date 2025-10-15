@@ -1,14 +1,14 @@
-# Voice Communication Integration Guide
+# 语音通讯集成指南
 
-This guide provides comprehensive documentation for integrating and using the voice communication system in the MMO server.
+本指南提供了在 MMO 服务器中集成和使用语音通讯系统的全面文档。
 
-## Overview
+## 概述
 
-The voice communication system enables real-time voice chat using WebRTC peer-to-peer connections. The server acts as a signaling relay, coordinating connection establishment between clients while keeping media traffic peer-to-peer for optimal latency and performance.
+语音通讯系统使用 WebRTC 点对点连接实现实时语音聊天。 The server acts as a signaling relay, coordinating connection establishment between clients while keeping media traffic peer-to-peer for optimal latency and performance.
 
-## Architecture
+## 架构
 
-### Design Principles
+### 设计原则
 
 1. **Peer-to-Peer**: Audio/video streams directly between clients (no server relay)
 2. **Server Signaling**: Server coordinates WebRTC connection setup
@@ -16,7 +16,7 @@ The voice communication system enables real-time voice chat using WebRTC peer-to
 4. **Low Overhead**: Minimal server resources for media streaming
 5. **Scalable**: Supports multiple channel types and use cases
 
-### Components
+### 组件
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -54,37 +54,37 @@ The voice communication system enables real-time voice chat using WebRTC peer-to
 
 ## Voice Channel Types
 
-### 1. Global Channel
+### 1. 全局频道
 - **Purpose**: Server-wide voice communication
 - **Max Members**: 100 (configurable)
 - **Auto-created**: Yes
 - **Deletable**: No
 - **Use Case**: Lobby chat, server announcements
 
-### 2. Group Channel
+### 2. 分组频道
 - **Purpose**: Team/guild voice communication
 - **Max Members**: 50 (default, configurable up to 100)
 - **Auto-created**: No (created by players)
 - **Deletable**: Yes (by owner)
 - **Use Case**: Party/team coordination, guild meetings
 
-### 3. Private Channel
+### 3. 私密频道
 - **Purpose**: One-on-one or small group conversations
 - **Max Members**: Configurable (typically 2-10)
 - **Auto-created**: No
 - **Deletable**: Yes (by owner)
 - **Use Case**: Private conversations, direct calls
 
-### 4. Proximity Channel
+### 4. 邻近频道
 - **Purpose**: Spatial voice (hear nearby players)
 - **Max Members**: Dynamic (based on proximity)
 - **Auto-created**: Yes (on demand)
 - **Deletable**: Yes (when empty)
 - **Use Case**: Immersive in-game voice, local area chat
 
-## Server-Side API
+## 服务器端 API
 
-### Message Handlers
+### 消息处理器
 
 #### Join Voice Channel
 ```typescript
@@ -300,9 +300,9 @@ class Player extends Schema {
 }
 ```
 
-## Client Integration
+## 客户端集成
 
-### Basic Setup
+### 基础设置
 
 ```typescript
 import { Client } from 'colyseus.js';
@@ -460,7 +460,7 @@ function leaveVoice() {
 
 ## Security Considerations
 
-### Rate Limiting
+### 速率限制
 
 The system implements multiple rate limiting tiers:
 
@@ -470,14 +470,14 @@ The system implements multiple rate limiting tiers:
 2. **Signaling**: 100 messages per 20 seconds
    - WebRTC offer, answer, ICE candidates
 
-### Validation
+### 验证
 
 - Channel IDs validated (3-50 characters)
 - Max members capped at 100
 - Only channel owners can delete non-global channels
 - Signaling only allowed between members of same channel
 
-### Privacy
+### 隐私
 
 - WebRTC connections are peer-to-peer (server doesn't see media)
 - Media streams encrypted end-to-end via WebRTC (DTLS-SRTP)
@@ -485,14 +485,14 @@ The system implements multiple rate limiting tiers:
 
 ## Performance Considerations
 
-### Server Resources
+### 服务器资源
 
 - **Minimal**: Server only handles signaling, no media relay
 - **Memory**: ~1KB per channel member for state synchronization
 - **CPU**: Negligible (just message forwarding)
 - **Bandwidth**: Only signaling data (~1-5KB per connection establishment)
 
-### Client Resources
+### 客户端资源
 
 - **CPU**: Depends on audio codec and peer count
 - **Memory**: ~10-50MB per active peer connection
@@ -517,7 +517,7 @@ The system implements multiple rate limiting tiers:
 
 ## Troubleshooting
 
-### Common Issues
+### 常见问题
 
 #### Peers Can't Connect
 - **Cause**: NAT/firewall blocking WebRTC
@@ -559,9 +559,9 @@ pc.onconnectionstatechange = () => {
 };
 ```
 
-## Advanced Features
+## 高级功能
 
-### Proximity Voice
+### 邻近语音
 
 Implement spatial voice chat:
 
@@ -580,7 +580,7 @@ function updateVolumeForDistance(distance: number, maxDistance: number) {
 }
 ```
 
-### Voice Activity Detection
+### 语音活动检测
 
 Implement "speaking" indicator:
 
@@ -620,9 +620,9 @@ mediaRecorder.start();
 mediaRecorder.stop();
 ```
 
-## Production Deployment
+## 生产部署
 
-### TURN Server Setup
+### TURN 服务器设置
 
 For reliable NAT traversal in production:
 
@@ -642,7 +642,7 @@ Consider using:
 - **Twilio TURN**: Managed service
 - **Xirsys**: Managed service
 
-### Monitoring
+### 监控
 
 Track voice metrics:
 
@@ -661,7 +661,7 @@ const activeChannels = room.state.voiceChannels.size;
 metrics.gauge('voice.channels.active', activeChannels);
 ```
 
-## Best Practices
+## 最佳实践
 
 1. **Cleanup**: Always close peer connections on disconnect
 2. **Error Handling**: Gracefully handle WebRTC failures
