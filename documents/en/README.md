@@ -29,6 +29,12 @@ This directory contains all English documentation for the MMO Server project.
 
 ## Getting Started
 
+### Architecture Overview
+
+![Architecture Diagram](../images/architecture-overview.svg)
+
+*See [../images/](../images/) for more diagrams and screenshots*
+
 ### New to the Project?
 1. Read [FEATURES.md](./FEATURES.md) to understand available systems
 2. Check [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md) for integration patterns

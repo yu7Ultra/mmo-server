@@ -4,6 +4,10 @@ Welcome to the MMO Server documentation. This directory contains organized docum
 
 ## Architecture Overview
 
+![MMO Server Architecture](./images/architecture-overview.svg)
+
+**Architecture Components:**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     MMO Server Architecture                  │
