@@ -53,34 +53,34 @@ export class MyRoom extends Room<MyRoomState> {
   const autoProfileCooldownMs = ENV.PERF_AUTO_PROFILE_COOLDOWN_MS; // ms
     let lastAutoProfileAt = 0;
     let tickCount = 0;
-    
-    this.setSimulationInterval(() => {
+
+    const tickFn = () => {
       const start = Date.now();
       const deltaTime = start - lastTickTime;
 
       // Core systems
       inputSystem(this.world, this.entityCommandMap, this.entityByClient);
       movementSystem(this.world);
-      
+
       // Combat and skills
       combatSystem(this.world, deltaTime);
       regenerationSystem(this.world, deltaTime);
       skillSystem(this.world);
       buffSystem(this.world);
-      
+
       // Quest and achievement systems
       questSystem(this.world);
       achievementSystem(this.world);
-      
+
       // Update leaderboard periodically
       this.leaderboardManager.update(this.world, this.state.leaderboard);
-      
+
       // Update server time
       this.state.serverTime = Date.now();
-      
+
       // Sync to schema
       syncSystem(this.world);
-      
+
       const end = Date.now();
       const duration = end - start;
       recordTick(this.roomId, duration);
@@ -88,29 +88,43 @@ export class MyRoom extends Room<MyRoomState> {
         recordSlowTick(this.roomId, duration, slowThreshold);
         const now = Date.now();
         if (now - lastAutoProfileAt > autoProfileCooldownMs) {
-          // Fire and forget 1s CPU profile
-          if (ENV.ENABLE_AUTO_PROFILE) {
-            import('../instrumentation/profiler').then(mod => {
-              mod.captureCPUProfile(ENV.AUTO_PROFILE_DURATION_MS).then(file => {
-              updateAutoProfile(this.roomId, file);
-              console.warn(`[perf] auto CPU profile captured for room ${this.roomId}: ${file}`);
-              }).catch(err => console.error('[perf] auto profile error', err));
-            }).catch(err => console.error('[perf] profiler import error', err));
-          }
-          lastAutoProfileAt = now;
+          // Fire and forget CPU profile
+            if (ENV.ENABLE_AUTO_PROFILE) {
+              import('../instrumentation/profiler').then(mod => {
+                mod.captureCPUProfile(ENV.AUTO_PROFILE_DURATION_MS).then(file => {
+                  updateAutoProfile(this.roomId, file);
+                  console.warn(`[perf] auto CPU profile captured for room ${this.roomId}: ${file}`);
+                }).catch(err => console.error('[perf] auto profile error', err));
+              }).catch(err => console.error('[perf] profiler import error', err));
+            }
+            lastAutoProfileAt = now;
         }
       }
       updateClients(this.roomId, this.clients.length);
       lastTickTime = end;
       tickCount++;
-      
-      // Periodic cleanup (every 100 ticks ~10 seconds at 10 TPS)
+
+      // Periodic cleanup (every 100 ticks ~10 seconds at ENV.TICK_RATE=10)
       if (tickCount % 100 === 0) {
         this.actionRateLimiter.cleanup();
         this.chatRateLimiter.cleanup();
         this.chatManager.cleanupRateLimits();
       }
-    }, 1000 / 10); // 10 TPS
+    };
+
+    // Use custom unref'ed interval in test environment to avoid Jest open-handle warning
+    // Always use Colyseus setSimulationInterval (manages patches correctly).
+    // Use unref() on internal timer when under Jest to avoid open handle warnings.
+    this.setSimulationInterval(tickFn, 1000 / ENV.TICK_RATE);
+    if (process.env.JEST_WORKER_ID) {
+      // Colyseus stores the interval handle in this.clock, try to unref if available
+      try {
+        const anyThis: any = this as any;
+        if (anyThis.clock && anyThis.clock._interval) {
+          anyThis.clock._interval.unref?.();
+        }
+      } catch {}
+    }
 
     // Message handlers
     this.setupMessageHandlers();
