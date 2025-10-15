@@ -1,0 +1,626 @@
+{
+  "version": "1.0.0",
+  "description": "MMO Game Asset Manifest - Documents all game assets with metadata",
+  "license": "See individual asset licenses below",
+  "categories": {
+    "characters": {
+      "description": "Character sprites and animations",
+      "path": "assets/characters/",
+      "assets": [
+        {
+          "id": "player-red",
+          "filename": "player-red.png",
+          "type": "sprite",
+          "dimensions": "64x64",
+          "purpose": "Player character sprite - red team/variant",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["character", "player", "red"],
+          "usage": "Current player indicator"
+        },
+        {
+          "id": "player-blue",
+          "filename": "player-blue.png",
+          "type": "sprite",
+          "dimensions": "64x64",
+          "purpose": "Player character sprite - blue team/variant",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["character", "player", "blue"],
+          "usage": "Alternative player appearance"
+        },
+        {
+          "id": "player-green",
+          "filename": "player-green.png",
+          "type": "sprite",
+          "dimensions": "64x64",
+          "purpose": "Player character sprite - green team/variant",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["character", "player", "green"],
+          "usage": "Other players indicator (current implementation)"
+        },
+        {
+          "id": "player-yellow",
+          "filename": "player-yellow.png",
+          "type": "sprite",
+          "dimensions": "64x64",
+          "purpose": "Player character sprite - yellow team/variant",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["character", "player", "yellow"],
+          "usage": "Friend/party member indicator"
+        },
+        {
+          "id": "npc-merchant",
+          "filename": "npc-merchant.png",
+          "type": "sprite",
+          "dimensions": "64x64",
+          "purpose": "NPC merchant character sprite",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["character", "npc", "merchant"],
+          "usage": "Shop/trade NPCs"
+        },
+        {
+          "id": "enemy-skeleton",
+          "filename": "enemy-skeleton.png",
+          "type": "sprite",
+          "dimensions": "64x64",
+          "purpose": "Enemy skeleton monster sprite",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["character", "enemy", "skeleton", "undead"],
+          "usage": "Low-level undead enemies"
+        },
+        {
+          "id": "enemy-goblin",
+          "filename": "enemy-goblin.png",
+          "type": "sprite",
+          "dimensions": "64x64",
+          "purpose": "Enemy goblin monster sprite",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["character", "enemy", "goblin"],
+          "usage": "Low-level hostile creatures"
+        }
+      ]
+    },
+    "skills": {
+      "description": "Skill icons and effect sprites",
+      "path": "assets/skills/",
+      "assets": [
+        {
+          "id": "fireball",
+          "filename": "fireball.png",
+          "type": "icon",
+          "dimensions": "64x64",
+          "purpose": "Fireball skill icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["skill", "attack", "fire", "magic"],
+          "usage": "Skill slot 1 - ranged fire attack",
+          "skillData": {
+            "manaCost": 20,
+            "cooldown": 5,
+            "damage": 30,
+            "range": 200
+          }
+        },
+        {
+          "id": "heal",
+          "filename": "heal.png",
+          "type": "icon",
+          "dimensions": "64x64",
+          "purpose": "Heal skill icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["skill", "support", "heal", "magic"],
+          "usage": "Skill slot 2 - restore health",
+          "skillData": {
+            "manaCost": 30,
+            "cooldown": 10,
+            "healing": 50
+          }
+        },
+        {
+          "id": "shield",
+          "filename": "shield.png",
+          "type": "icon",
+          "dimensions": "64x64",
+          "purpose": "Shield buff skill icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["skill", "support", "defense", "buff"],
+          "usage": "Skill slot 3 - increase defense",
+          "skillData": {
+            "manaCost": 25,
+            "cooldown": 15,
+            "duration": 10,
+            "defenseBoost": 20
+          }
+        },
+        {
+          "id": "dash",
+          "filename": "dash.png",
+          "type": "icon",
+          "dimensions": "64x64",
+          "purpose": "Dash movement skill icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["skill", "movement", "speed", "buff"],
+          "usage": "Skill slot 4 - increase movement speed",
+          "skillData": {
+            "manaCost": 15,
+            "cooldown": 8,
+            "duration": 5,
+            "speedBoost": 50
+          }
+        },
+        {
+          "id": "ice-spike",
+          "filename": "ice-spike.png",
+          "type": "icon",
+          "dimensions": "64x64",
+          "purpose": "Ice spike attack skill icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["skill", "attack", "ice", "magic"],
+          "usage": "Additional ice-based attack skill"
+        },
+        {
+          "id": "poison",
+          "filename": "poison.png",
+          "type": "icon",
+          "dimensions": "64x64",
+          "purpose": "Poison debuff skill icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["skill", "debuff", "poison", "damage-over-time"],
+          "usage": "Poison damage over time skill"
+        },
+        {
+          "id": "fire-effect",
+          "filename": "fire-effect.png",
+          "type": "effect",
+          "dimensions": "32x32",
+          "purpose": "Fire particle effect sprite",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["effect", "particle", "fire"],
+          "usage": "Visual effect for fire skills"
+        },
+        {
+          "id": "heal-effect",
+          "filename": "heal-effect.png",
+          "type": "effect",
+          "dimensions": "32x32",
+          "purpose": "Healing particle effect sprite",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["effect", "particle", "heal"],
+          "usage": "Visual effect for healing skills"
+        },
+        {
+          "id": "hit-effect",
+          "filename": "hit-effect.png",
+          "type": "effect",
+          "dimensions": "32x32",
+          "purpose": "Hit impact particle effect sprite",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["effect", "particle", "impact"],
+          "usage": "Visual effect when attacks hit"
+        },
+        {
+          "id": "level-up",
+          "filename": "level-up.png",
+          "type": "effect",
+          "dimensions": "32x32",
+          "purpose": "Level up celebration effect sprite",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["effect", "particle", "level-up"],
+          "usage": "Visual effect when player levels up"
+        }
+      ]
+    },
+    "ui": {
+      "description": "User interface elements",
+      "path": "assets/ui/",
+      "assets": [
+        {
+          "id": "panel-background",
+          "filename": "panel-background.png",
+          "type": "ui-element",
+          "dimensions": "320x240",
+          "purpose": "Background for UI panels",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["ui", "panel", "background"],
+          "usage": "Right sidebar panels (stats, skills, etc.)"
+        },
+        {
+          "id": "button-normal",
+          "filename": "button-normal.png",
+          "type": "ui-element",
+          "dimensions": "120x40",
+          "purpose": "Button in normal state",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["ui", "button", "normal"],
+          "usage": "Default button appearance"
+        },
+        {
+          "id": "button-hover",
+          "filename": "button-hover.png",
+          "type": "ui-element",
+          "dimensions": "120x40",
+          "purpose": "Button in hover state",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["ui", "button", "hover"],
+          "usage": "Button appearance when mouse hovers"
+        },
+        {
+          "id": "button-pressed",
+          "filename": "button-pressed.png",
+          "type": "ui-element",
+          "dimensions": "120x40",
+          "purpose": "Button in pressed state",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["ui", "button", "pressed"],
+          "usage": "Button appearance when clicked"
+        },
+        {
+          "id": "progress-bar-bg",
+          "filename": "progress-bar-bg.png",
+          "type": "ui-element",
+          "dimensions": "200x20",
+          "purpose": "Progress bar background",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["ui", "progress-bar", "background"],
+          "usage": "Background for all progress bars"
+        },
+        {
+          "id": "progress-bar-fill-hp",
+          "filename": "progress-bar-fill-hp.png",
+          "type": "ui-element",
+          "dimensions": "200x20",
+          "purpose": "Health progress bar fill",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["ui", "progress-bar", "health"],
+          "usage": "Health bar fill (green)"
+        },
+        {
+          "id": "progress-bar-fill-mana",
+          "filename": "progress-bar-fill-mana.png",
+          "type": "ui-element",
+          "dimensions": "200x20",
+          "purpose": "Mana progress bar fill",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["ui", "progress-bar", "mana"],
+          "usage": "Mana bar fill (blue)"
+        },
+        {
+          "id": "progress-bar-fill-xp",
+          "filename": "progress-bar-fill-xp.png",
+          "type": "ui-element",
+          "dimensions": "200x20",
+          "purpose": "Experience progress bar fill",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["ui", "progress-bar", "experience"],
+          "usage": "Experience bar fill (gold)"
+        }
+      ]
+    },
+    "items": {
+      "description": "Item and equipment icons",
+      "path": "assets/items/",
+      "assets": [
+        {
+          "id": "sword",
+          "filename": "sword.png",
+          "type": "icon",
+          "dimensions": "32x32",
+          "purpose": "Sword weapon icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["item", "weapon", "sword", "melee"],
+          "usage": "Inventory weapon icon"
+        },
+        {
+          "id": "potion-health",
+          "filename": "potion-health.png",
+          "type": "icon",
+          "dimensions": "32x32",
+          "purpose": "Health potion consumable icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["item", "consumable", "potion", "health"],
+          "usage": "Health restoration item"
+        },
+        {
+          "id": "potion-mana",
+          "filename": "potion-mana.png",
+          "type": "icon",
+          "dimensions": "32x32",
+          "purpose": "Mana potion consumable icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["item", "consumable", "potion", "mana"],
+          "usage": "Mana restoration item"
+        },
+        {
+          "id": "armor",
+          "filename": "armor.png",
+          "type": "icon",
+          "dimensions": "32x32",
+          "purpose": "Armor equipment icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["item", "equipment", "armor", "defense"],
+          "usage": "Chest armor equipment slot"
+        },
+        {
+          "id": "helmet",
+          "filename": "helmet.png",
+          "type": "icon",
+          "dimensions": "32x32",
+          "purpose": "Helmet equipment icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["item", "equipment", "helmet", "head"],
+          "usage": "Head equipment slot"
+        },
+        {
+          "id": "boots",
+          "filename": "boots.png",
+          "type": "icon",
+          "dimensions": "32x32",
+          "purpose": "Boots equipment icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["item", "equipment", "boots", "feet"],
+          "usage": "Feet equipment slot"
+        },
+        {
+          "id": "ring",
+          "filename": "ring.png",
+          "type": "icon",
+          "dimensions": "32x32",
+          "purpose": "Ring accessory icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["item", "equipment", "ring", "accessory"],
+          "usage": "Ring equipment slot"
+        },
+        {
+          "id": "amulet",
+          "filename": "amulet.png",
+          "type": "icon",
+          "dimensions": "32x32",
+          "purpose": "Amulet accessory icon",
+          "format": "PNG",
+          "transparency": true,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["item", "equipment", "amulet", "accessory"],
+          "usage": "Amulet equipment slot"
+        }
+      ]
+    },
+    "environment": {
+      "description": "Environment tiles and terrain",
+      "path": "assets/environment/",
+      "assets": [
+        {
+          "id": "grass",
+          "filename": "grass.png",
+          "type": "tile",
+          "dimensions": "32x32",
+          "purpose": "Grass terrain tile",
+          "format": "PNG",
+          "transparency": false,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["tile", "terrain", "grass"],
+          "usage": "Grassland areas",
+          "tileable": true
+        },
+        {
+          "id": "stone",
+          "filename": "stone.png",
+          "type": "tile",
+          "dimensions": "32x32",
+          "purpose": "Stone floor tile",
+          "format": "PNG",
+          "transparency": false,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["tile", "terrain", "stone"],
+          "usage": "Stone paths and dungeons",
+          "tileable": true
+        },
+        {
+          "id": "water",
+          "filename": "water.png",
+          "type": "tile",
+          "dimensions": "32x32",
+          "purpose": "Water terrain tile",
+          "format": "PNG",
+          "transparency": false,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["tile", "terrain", "water"],
+          "usage": "Rivers and lakes",
+          "tileable": true,
+          "walkable": false
+        },
+        {
+          "id": "dirt",
+          "filename": "dirt.png",
+          "type": "tile",
+          "dimensions": "32x32",
+          "purpose": "Dirt terrain tile",
+          "format": "PNG",
+          "transparency": false,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["tile", "terrain", "dirt"],
+          "usage": "Dirt paths and farms",
+          "tileable": true
+        },
+        {
+          "id": "sand",
+          "filename": "sand.png",
+          "type": "tile",
+          "dimensions": "32x32",
+          "purpose": "Sand terrain tile",
+          "format": "PNG",
+          "transparency": false,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["tile", "terrain", "sand"],
+          "usage": "Desert and beach areas",
+          "tileable": true
+        },
+        {
+          "id": "snow",
+          "filename": "snow.png",
+          "type": "tile",
+          "dimensions": "32x32",
+          "purpose": "Snow terrain tile",
+          "format": "PNG",
+          "transparency": false,
+          "license": "CC0 1.0 Universal (Public Domain)",
+          "source": "Generated placeholder",
+          "tags": ["tile", "terrain", "snow"],
+          "usage": "Snowy areas",
+          "tileable": true
+        }
+      ]
+    }
+  },
+  "recommendations": {
+    "production_assets": [
+      {
+        "name": "LPC (Liberated Pixel Cup) Universal Spritesheet",
+        "url": "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "license": "CC-BY-SA 3.0 / GPL 3.0",
+        "description": "Complete character spritesheets with animations (walk, attack, etc.)",
+        "type": "characters"
+      },
+      {
+        "name": "Kenney Game Assets",
+        "url": "https://kenney.nl/assets",
+        "license": "CC0 1.0 (Public Domain)",
+        "description": "High-quality UI elements, icons, and game sprites",
+        "type": "ui, items, characters"
+      },
+      {
+        "name": "OpenGameArt RPG Collection",
+        "url": "https://opengameart.org/art-search-advanced?keys=&field_art_type_tid%5B%5D=9&sort_by=count&sort_order=DESC",
+        "license": "Various (CC-BY, CC-BY-SA, CC0, GPL)",
+        "description": "Large collection of RPG/MMORPG assets",
+        "type": "all"
+      },
+      {
+        "name": "Craft Pixel Art",
+        "url": "https://opengameart.org/content/rpg-item-set",
+        "license": "CC-BY 3.0",
+        "description": "RPG items and equipment icons",
+        "type": "items"
+      },
+      {
+        "name": "itch.io Free Assets",
+        "url": "https://itch.io/game-assets/free/tag-rpg",
+        "license": "Various",
+        "description": "Community-created RPG assets",
+        "type": "all"
+      }
+    ],
+    "animation_requirements": {
+      "characters": {
+        "states": ["idle", "walk", "run", "attack", "hurt", "death"],
+        "directions": 4,
+        "frameRate": 8,
+        "spriteSheetLayout": "horizontal or grid"
+      },
+      "effects": {
+        "types": ["hit", "skill-cast", "buff", "debuff", "level-up"],
+        "frameRate": 12,
+        "looping": true
+      }
+    }
+  }
+}
