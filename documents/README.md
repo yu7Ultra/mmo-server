@@ -43,9 +43,10 @@ Welcome to the MMO Server documentation. This directory contains organized docum
 ```
 documents/
 ├── README.md (this file)
-├── en/                    # English Documentation (14 files)
+├── en/                    # English Documentation (16 files)
 │   ├── README.md
 │   ├── FEATURES.md
+│   ├── ROADMAP.md         # ⭐ NEW: MMO Maturity Roadmap
 │   ├── PERFORMANCE.md
 │   ├── USAGE_EXAMPLES.md
 │   ├── CLIENT_README.md
@@ -58,9 +59,10 @@ documents/
 │   ├── CLIENT_ENHANCEMENT_SUMMARY.md
 │   ├── MINIPLEX_DOCS.md
 │   └── POWERSHELL_HELP.md
-├── zh/                    # Chinese Documentation (14 files - 中文文档)
+├── zh/                    # Chinese Documentation (16 files - 中文文档)
 │   ├── README.md
 │   ├── FEATURES.md
+│   ├── ROADMAP.md         # ⭐ 新增：MMO 成熟化路线图
 │   ├── PERFORMANCE.md
 │   ├── USAGE_EXAMPLES.md
 │   ├── CLIENT_README.md
@@ -76,12 +78,13 @@ documents/
 └── images/                # Documentation Images
 ```
 
-**Note**: Both English and Chinese directories now contain equivalent complete documentation (14 files each).
+**Note**: Both English and Chinese directories now contain equivalent complete documentation (16 files each), including the new MMO Maturity Roadmap.
 
 ## English Documentation
 
 ### Core Documentation
 - **[FEATURES.md](./en/FEATURES.md)** - Complete feature documentation for all game systems
+- **[ROADMAP.md](./en/ROADMAP.md)** - ⭐ MMO Maturity Roadmap: comprehensive planning for production-ready MMO
 - **[PERFORMANCE.md](./en/PERFORMANCE.md)** - Performance optimization guide and profiling instructions
 - **[USAGE_EXAMPLES.md](./en/USAGE_EXAMPLES.md)** - Code examples for using server features
 
@@ -107,6 +110,7 @@ documents/
 
 ### 核心文档
 - **[FEATURES.md](./zh/FEATURES.md)** - 所有游戏系统的完整功能文档
+- **[ROADMAP.md](./zh/ROADMAP.md)** - ⭐ MMO 成熟化路线图：工业级 MMO 产品完整规划
 - **[PERFORMANCE.md](./zh/PERFORMANCE.md)** - 性能优化指南和性能分析说明
 - **[USAGE_EXAMPLES.md](./zh/USAGE_EXAMPLES.md)** - 使用服务器功能的代码示例
 
@@ -132,13 +136,15 @@ documents/
 
 ### For Developers
 1. Start with [FEATURES.md](./en/FEATURES.md) to understand available systems
-2. Refer to [USAGE_EXAMPLES.md](./en/USAGE_EXAMPLES.md) for integration examples
-3. Check [PERFORMANCE.md](./en/PERFORMANCE.md) for optimization techniques
+2. Check [ROADMAP.md](./en/ROADMAP.md) for production-ready MMO planning
+3. Refer to [USAGE_EXAMPLES.md](./en/USAGE_EXAMPLES.md) for integration examples
+4. Check [PERFORMANCE.md](./en/PERFORMANCE.md) for optimization techniques
 
 ### For Chinese Developers (中文开发者)
 1. 从 [CLIENT_README.md](./zh/CLIENT_README.md) 开始了解客户端
-2. 参考 [CLIENT_FEATURES.md](./zh/CLIENT_FEATURES.md) 了解功能详情
-3. 查看 [CLIENT_USAGE_EXAMPLES.md](./zh/CLIENT_USAGE_EXAMPLES.md) 获取使用示例
+2. 查看 [ROADMAP.md](./zh/ROADMAP.md) 了解 MMO 成熟化规划
+3. 参考 [CLIENT_FEATURES.md](./zh/CLIENT_FEATURES.md) 了解功能详情
+4. 查看 [CLIENT_USAGE_EXAMPLES.md](./zh/CLIENT_USAGE_EXAMPLES.md) 获取使用示例
 
 ### Voice Communication Setup
 1. Read [VOICE_INTEGRATION.md](./en/VOICE_INTEGRATION.md) for architecture and API

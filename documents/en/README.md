@@ -9,6 +9,7 @@ This directory contains all English documentation for the MMO Server project.
 | Document | Description | Topics Covered |
 |----------|-------------|----------------|
 | [FEATURES.md](./FEATURES.md) | Complete feature documentation | Combat, Skills, Quests, Achievements, Chat, Voice, Security |
+| [ROADMAP.md](./ROADMAP.md) | MMO Maturity Roadmap | Game extensions, content tools, operations, technical optimization |
 | [PERFORMANCE.md](./PERFORMANCE.md) | Performance optimization guide | Profiling, Metrics, Best practices |
 | [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md) | Code examples and snippets | Client integration, API usage |
 
