@@ -12,6 +12,20 @@ import './style.css';
 
 const client = new Client("ws://localhost:2567");
 
+// Voice chat state
+let localStream: MediaStream | null = null;
+const voicePeerConnections = new Map<string, RTCPeerConnection>();
+let isVoiceMuted = false;
+let isVoiceDeafened = false;
+
+// WebRTC configuration
+const rtcConfig = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+};
+
 // Player visual representation
 interface PlayerVisual {
     container: Container;
@@ -217,6 +231,9 @@ async function main() {
 
         // Setup UI handlers
         setupUIHandlers(room, currentPlayerId);
+        
+        // Setup voice communication
+        setupVoiceChat(room, currentPlayerId);
 
         $$(room.state).players.onAdd((player, sessionId) => {
             const isCurrentPlayer = sessionId === currentPlayerId;
@@ -1057,6 +1074,17 @@ function createUI(container: HTMLElement) {
                         <button id="chat-send">发送</button>
                     </div>
                 </div>
+                <div id="voice-panel" class="panel">
+                    <h3>🎙️ 语音</h3>
+                    <div id="voice-controls">
+                        <button id="voice-join-global">加入全局</button>
+                        <button id="voice-leave">离开频道</button>
+                        <button id="voice-mute">静音</button>
+                        <button id="voice-deafen">免打扰</button>
+                    </div>
+                    <div id="voice-status">未连接</div>
+                    <div id="voice-members"></div>
+                </div>
                 <div id="loading-overlay" class="overlay hidden">
                     <div class="loader"></div>
                     <div class="text" id="loading-text">Loading...</div>
@@ -1368,6 +1396,269 @@ function updateLeaderboard(leaderboard: any) {
                 <span class="score">${entry.score}</span>
             </div>
         `).join('') || '<div class="empty">排行榜暂无数据</div>';
+    }
+}
+
+// Voice chat functionality
+function setupVoiceChat(room: Room<MyRoomState>, currentPlayerId: string) {
+    const $$ = getStateCallbacks(room);
+    
+    // Setup voice channel listeners
+    $$(room.state).voiceChannels.onAdd((channel, channelId) => {
+        updateVoiceDisplay(room);
+        
+        // Listen for members in this channel
+        $$(channel).members.onAdd((member, sessionId) => {
+            updateVoiceDisplay(room);
+            
+            // If it's not me and I'm in this channel, setup peer connection
+            const myPlayer = room.state.players.get(currentPlayerId);
+            if (sessionId !== currentPlayerId && 
+                myPlayer?.currentVoiceChannel === channelId) {
+                setupVoicePeerConnection(room, sessionId);
+            }
+        });
+        
+        $$(channel).members.onRemove((member, sessionId) => {
+            updateVoiceDisplay(room);
+            closeVoicePeerConnection(sessionId);
+        });
+    });
+    
+    $$(room.state).voiceChannels.onRemove(() => {
+        updateVoiceDisplay(room);
+    });
+    
+    // Listen for WebRTC signaling messages
+    room.onMessage('voice:signal', (message: any) => {
+        handleVoiceSignal(room, message);
+    });
+    
+    // Listen for player state changes
+    const myPlayer = room.state.players.get(currentPlayerId);
+    if (myPlayer) {
+        const $$ = getStateCallbacks(room);
+        $$(myPlayer).listen("currentVoiceChannel", () => {
+            updateVoiceDisplay(room);
+        });
+    }
+    
+    // Setup button handlers
+    const joinBtn = document.getElementById('voice-join-global');
+    const leaveBtn = document.getElementById('voice-leave');
+    const muteBtn = document.getElementById('voice-mute');
+    const deafenBtn = document.getElementById('voice-deafen');
+    
+    joinBtn?.addEventListener('click', async () => {
+        // Request microphone permission if not already done
+        if (!localStream) {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+            } catch (err) {
+                console.error('Microphone access denied:', err);
+                alert('请授予麦克风权限以使用语音功能');
+                return;
+            }
+        }
+        room.send('voice:join', { channelId: 'global' });
+    });
+    
+    leaveBtn?.addEventListener('click', () => {
+        voicePeerConnections.forEach((pc, peerId) => closeVoicePeerConnection(peerId));
+        voicePeerConnections.clear();
+        room.send('voice:leave');
+    });
+    
+    muteBtn?.addEventListener('click', () => {
+        isVoiceMuted = !isVoiceMuted;
+        
+        if (localStream) {
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = !isVoiceMuted;
+            });
+        }
+        
+        room.send('voice:mute', { muted: isVoiceMuted });
+        updateVoiceDisplay(room);
+    });
+    
+    deafenBtn?.addEventListener('click', () => {
+        isVoiceDeafened = !isVoiceDeafened;
+        
+        voicePeerConnections.forEach(pc => {
+            const audio = (pc as any).remoteAudio;
+            if (audio) {
+                audio.muted = isVoiceDeafened;
+            }
+        });
+        
+        room.send('voice:deafen', { deafened: isVoiceDeafened });
+        updateVoiceDisplay(room);
+    });
+}
+
+function updateVoiceDisplay(room: Room<MyRoomState>) {
+    const myPlayer = room.state.players.get(room.sessionId);
+    const statusDiv = document.getElementById('voice-status');
+    const membersDiv = document.getElementById('voice-members');
+    
+    if (!statusDiv || !membersDiv) return;
+    
+    if (myPlayer?.currentVoiceChannel) {
+        const channel = room.state.voiceChannels.get(myPlayer.currentVoiceChannel);
+        const channelName = channel ? channel.name : myPlayer.currentVoiceChannel;
+        const muteStatus = isVoiceMuted ? '🔇' : '🎤';
+        const deafStatus = isVoiceDeafened ? '🔈' : '🔊';
+        
+        statusDiv.innerHTML = `${muteStatus} ${deafStatus} ${channelName}`;
+        
+        if (channel) {
+            let html = '<div style="font-size: 12px; margin-top: 8px;">成员:</div>';
+            channel.members.forEach((member) => {
+                const mute = member.muted ? '🔇' : '🎤';
+                const deaf = member.deafened ? '🔈' : '🔊';
+                html += `<div style="font-size: 11px; padding: 2px;">${mute}${deaf} ${member.playerName}</div>`;
+            });
+            membersDiv.innerHTML = html;
+        } else {
+            membersDiv.innerHTML = '';
+        }
+    } else {
+        statusDiv.textContent = '未连接';
+        membersDiv.innerHTML = '';
+    }
+}
+
+async function setupVoicePeerConnection(room: Room<MyRoomState>, peerId: string) {
+    if (voicePeerConnections.has(peerId) || !localStream) return;
+    
+    const pc = new RTCPeerConnection(rtcConfig);
+    voicePeerConnections.set(peerId, pc);
+    
+    // Add local tracks
+    localStream.getTracks().forEach(track => {
+        pc.addTrack(track, localStream!);
+    });
+    
+    // Handle incoming streams
+    pc.ontrack = (event) => {
+        const audio = new Audio();
+        audio.srcObject = event.streams[0];
+        audio.play();
+        (pc as any).remoteAudio = audio;
+    };
+    
+    // Handle ICE candidates
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            room.send('voice:signal', {
+                to: peerId,
+                type: 'ice-candidate',
+                data: event.candidate.toJSON()
+            });
+        }
+    };
+    
+    pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+            closeVoicePeerConnection(peerId);
+        }
+    };
+    
+    // Create and send offer
+    try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        
+        room.send('voice:signal', {
+            to: peerId,
+            type: 'offer',
+            data: offer
+        });
+    } catch (err) {
+        console.error('Error creating offer:', err);
+    }
+}
+
+async function handleVoiceSignal(room: Room<MyRoomState>, message: any) {
+    const { from, type, data } = message;
+    
+    let pc = voicePeerConnections.get(from);
+    
+    if (type === 'offer') {
+        if (!pc) {
+            pc = new RTCPeerConnection(rtcConfig);
+            voicePeerConnections.set(from, pc);
+            
+            // Add local tracks
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    pc!.addTrack(track, localStream!);
+                });
+            }
+            
+            // Setup handlers
+            pc.ontrack = (event) => {
+                const audio = new Audio();
+                audio.srcObject = event.streams[0];
+                audio.play();
+                (pc as any).remoteAudio = audio;
+            };
+            
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    room.send('voice:signal', {
+                        to: from,
+                        type: 'ice-candidate',
+                        data: event.candidate.toJSON()
+                    });
+                }
+            };
+        }
+        
+        try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            
+            room.send('voice:signal', {
+                to: from,
+                type: 'answer',
+                data: answer
+            });
+        } catch (err) {
+            console.error('Error handling offer:', err);
+        }
+    } else if (type === 'answer') {
+        try {
+            await pc?.setRemoteDescription(new RTCSessionDescription(data));
+        } catch (err) {
+            console.error('Error handling answer:', err);
+        }
+    } else if (type === 'ice-candidate') {
+        try {
+            await pc?.addIceCandidate(new RTCIceCandidate(data));
+        } catch (err) {
+            console.error('Error adding ICE candidate:', err);
+        }
+    }
+}
+
+function closeVoicePeerConnection(peerId: string) {
+    const pc = voicePeerConnections.get(peerId);
+    if (pc) {
+        const audio = (pc as any).remoteAudio;
+        if (audio) {
+            audio.srcObject = null;
+        }
+        pc.close();
+        voicePeerConnections.delete(peerId);
     }
 }
 

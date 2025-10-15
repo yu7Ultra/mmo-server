@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MMO Voice Chat Test</title>
+  <meta charset="UTF-8">
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      padding: 20px; 
+      background: #1a1a1a;
+      color: #e0e0e0;
+    }
+    h1 { color: #4CAF50; }
+    h2 { color: #2196F3; margin-top: 30px; }
+    .channel { 
+      border: 1px solid #444; 
+      padding: 10px; 
+      margin: 10px 0; 
+      background: #2a2a2a;
+      border-radius: 4px;
+    }
+    .member { 
+      padding: 5px; 
+      margin: 5px 0; 
+      background: #3a3a3a; 
+      border-radius: 3px;
+    }
+    .muted { color: #999; }
+    button { 
+      margin: 5px; 
+      padding: 8px 15px; 
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover { background: #45a049; }
+    button:disabled { 
+      background: #555; 
+      cursor: not-allowed;
+    }
+    #status { 
+      padding: 10px; 
+      background: #1b5e20; 
+      margin: 10px 0; 
+      border-radius: 4px;
+    }
+    .section {
+      background: #2a2a2a;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+      border: 1px solid #444;
+    }
+    .log {
+      background: #1a1a1a;
+      border: 1px solid #444;
+      padding: 10px;
+      margin: 10px 0;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .log-entry {
+      padding: 2px 0;
+      border-bottom: 1px solid #333;
+    }
+    .error { color: #f44336; }
+    .success { color: #4CAF50; }
+    .info { color: #2196F3; }
+  </style>
+</head>
+<body>
+  <h1>🎙️ MMO Voice Chat Test</h1>
+  
+  <div id="status">Disconnected</div>
+  
+  <div class="section">
+    <h2>Connection</h2>
+    <button id="connect-btn" onclick="connect()">Connect to Server</button>
+    <button id="disconnect-btn" onclick="disconnect()" disabled>Disconnect</button>
+  </div>
+  
+  <div class="section">
+    <h2>Voice Channels</h2>
+    <div>
+      <button onclick="joinGlobal()">Join Global Voice</button>
+      <button onclick="createTeam()">Create Team Channel</button>
+      <button onclick="leaveVoice()">Leave Voice</button>
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>Voice Controls</h2>
+    <div>
+      <button onclick="toggleMute()">Toggle Mute</button>
+      <button onclick="toggleDeafen()">Toggle Deafen</button>
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>Active Channels</h2>
+    <div id="channels">No channels</div>
+  </div>
+  
+  <div class="section">
+    <h2>My Status</h2>
+    <div id="myStatus">Not in voice</div>
+  </div>
+
+  <div class="section">
+    <h2>Debug Log</h2>
+    <div id="log" class="log"></div>
+  </div>
+  
+  <script src="https://unpkg.com/colyseus.js@^0.16.0/dist/colyseus.js"></script>
+  <script>
+    let room = null;
+    let localStream = null;
+    const peerConnections = new Map();
+    let isMuted = false;
+    let isDeafened = false;
+    
+    // WebRTC configuration
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
+    
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logDiv.appendChild(entry);
+      logDiv.scrollTop = logDiv.scrollHeight;
+      console.log(message);
+    }
+    
+    async function connect() {
+      try {
+        log('Connecting to server...', 'info');
+        const client = new Colyseus.Client('ws://localhost:2567');
+        room = await client.joinOrCreate('my_room', { name: 'VoiceUser_' + Math.floor(Math.random() * 1000) });
+        
+        document.getElementById('status').textContent = 'Connected to room: ' + room.id;
+        document.getElementById('status').style.background = '#1b5e20';
+        document.getElementById('connect-btn').disabled = true;
+        document.getElementById('disconnect-btn').disabled = false;
+        log('Connected to room: ' + room.id, 'success');
+        
+        // Setup voice channel listeners
+        setupVoiceListeners();
+        
+        // Get microphone permission
+        try {
+          log('Requesting microphone access...', 'info');
+          localStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          });
+          log('Microphone access granted', 'success');
+        } catch (err) {
+          log('Microphone access denied: ' + err.message, 'error');
+          alert('Please grant microphone permission for voice chat');
+        }
+      } catch (err) {
+        log('Connection error: ' + err.message, 'error');
+        console.error('JOIN ERROR', err);
+      }
+    }
+    
+    function disconnect() {
+      if (room) {
+        log('Disconnecting...', 'info');
+        // Close all peer connections
+        peerConnections.forEach((pc, peerId) => closePeerConnection(peerId));
+        peerConnections.clear();
+        
+        // Stop local stream
+        if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+          localStream = null;
+        }
+        
+        room.leave();
+        room = null;
+        
+        document.getElementById('status').textContent = 'Disconnected';
+        document.getElementById('status').style.background = '#c62828';
+        document.getElementById('connect-btn').disabled = false;
+        document.getElementById('disconnect-btn').disabled = true;
+        document.getElementById('channels').innerHTML = 'No channels';
+        document.getElementById('myStatus').textContent = 'Not in voice';
+        log('Disconnected', 'info');
+      }
+    }
+    
+    function setupVoiceListeners() {
+      log('Setting up voice listeners...', 'info');
+      
+      // Listen for voice channels
+      room.state.voiceChannels.onAdd((channel, channelId) => {
+        log(`Channel added: ${channel.name} (${channelId})`, 'success');
+        updateChannelDisplay();
+        
+        // Listen for members in this channel
+        channel.members.onAdd((member, sessionId) => {
+          log(`Member joined ${channel.name}: ${member.playerName}`, 'info');
+          updateChannelDisplay();
+          
+          // If it's not me and I'm in this channel, setup peer connection
+          const myPlayer = room.state.players.get(room.sessionId);
+          if (sessionId !== room.sessionId && 
+              myPlayer.currentVoiceChannel === channelId) {
+            log(`Setting up peer connection with ${member.playerName}`, 'info');
+            setupPeerConnection(sessionId);
+          }
+        });
+        
+        channel.members.onRemove((member, sessionId) => {
+          log(`Member left ${channel.name}: ${member.playerName}`, 'info');
+          updateChannelDisplay();
+          closePeerConnection(sessionId);
+        });
+      });
+      
+      room.state.voiceChannels.onRemove((channel, channelId) => {
+        log(`Channel removed: ${channel.name}`, 'info');
+        updateChannelDisplay();
+      });
+      
+      // Listen for WebRTC signaling messages
+      room.onMessage('voice:signal', (message) => {
+        log(`Received signal: ${message.type} from ${message.from}`, 'info');
+        handleSignal(message);
+      });
+      
+      // Listen for player state changes
+      room.state.players.onAdd((player, sessionId) => {
+        if (sessionId === room.sessionId) {
+          player.onChange(() => {
+            updateMyStatus();
+          });
+        }
+      });
+      
+      updateChannelDisplay();
+    }
+    
+    function updateChannelDisplay() {
+      const channelsDiv = document.getElementById('channels');
+      let html = '';
+      
+      room.state.voiceChannels.forEach((channel, channelId) => {
+        html += `<div class="channel">`;
+        html += `<strong>${channel.name}</strong> (${channel.type})`;
+        html += `<div style="font-size: 12px; color: #aaa;">Members: ${channel.members.size}/${channel.maxMembers}</div>`;
+        
+        channel.members.forEach((member, sessionId) => {
+          const muteIcon = member.muted ? '🔇' : '🎤';
+          const deafIcon = member.deafened ? '🔈' : '🔊';
+          const className = member.muted || member.deafened ? 'member muted' : 'member';
+          html += `<div class="${className}">${muteIcon} ${deafIcon} ${member.playerName}</div>`;
+        });
+        
+        html += `</div>`;
+      });
+      
+      channelsDiv.innerHTML = html || 'No channels';
+    }
+    
+    function updateMyStatus() {
+      const myPlayer = room.state.players.get(room.sessionId);
+      if (!myPlayer) return;
+      
+      const statusDiv = document.getElementById('myStatus');
+      
+      if (myPlayer.currentVoiceChannel) {
+        const channel = room.state.voiceChannels.get(myPlayer.currentVoiceChannel);
+        const channelName = channel ? channel.name : myPlayer.currentVoiceChannel;
+        const muteStatus = myPlayer.voiceMuted ? '🔇 Muted' : '🎤 Unmuted';
+        const deafStatus = myPlayer.voiceDeafened ? '🔈 Deafened' : '🔊 Hearing';
+        
+        statusDiv.innerHTML = `
+          <div>Channel: <strong>${channelName}</strong></div>
+          <div>${muteStatus} | ${deafStatus}</div>
+          <div>Peer Connections: ${peerConnections.size}</div>
+        `;
+      } else {
+        statusDiv.textContent = 'Not in voice';
+      }
+    }
+    
+    async function setupPeerConnection(peerId) {
+      if (peerConnections.has(peerId)) {
+        log(`Peer connection already exists for ${peerId}`, 'info');
+        return;
+      }
+      
+      if (!localStream) {
+        log('Cannot setup peer connection: no local stream', 'error');
+        return;
+      }
+      
+      log(`Creating peer connection for ${peerId}`, 'info');
+      const pc = new RTCPeerConnection(rtcConfig);
+      peerConnections.set(peerId, pc);
+      
+      // Add local tracks
+      localStream.getTracks().forEach(track => {
+        pc.addTrack(track, localStream);
+      });
+      
+      // Handle incoming streams
+      pc.ontrack = (event) => {
+        log(`Received remote track from ${peerId}`, 'success');
+        const audio = new Audio();
+        audio.srcObject = event.streams[0];
+        audio.play().catch(err => log(`Audio play error: ${err.message}`, 'error'));
+        pc.remoteAudio = audio;
+      };
+      
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          room.send('voice:signal', {
+            to: peerId,
+            type: 'ice-candidate',
+            data: event.candidate.toJSON()
+          });
+        }
+      };
+      
+      pc.onconnectionstatechange = () => {
+        log(`Connection state with ${peerId}: ${pc.connectionState}`, 'info');
+        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+          closePeerConnection(peerId);
+        }
+      };
+      
+      // Create and send offer
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        
+        room.send('voice:signal', {
+          to: peerId,
+          type: 'offer',
+          data: offer
+        });
+        log(`Sent offer to ${peerId}`, 'success');
+      } catch (err) {
+        log(`Error creating offer: ${err.message}`, 'error');
+      }
+    }
+    
+    async function handleSignal(message) {
+      const { from, type, data } = message;
+      
+      let pc = peerConnections.get(from);
+      
+      if (type === 'offer') {
+        if (!pc) {
+          pc = new RTCPeerConnection(rtcConfig);
+          peerConnections.set(from, pc);
+          
+          // Add local tracks
+          if (localStream) {
+            localStream.getTracks().forEach(track => {
+              pc.addTrack(track, localStream);
+            });
+          }
+          
+          // Setup handlers
+          pc.ontrack = (event) => {
+            log(`Received remote track from ${from}`, 'success');
+            const audio = new Audio();
+            audio.srcObject = event.streams[0];
+            audio.play().catch(err => log(`Audio play error: ${err.message}`, 'error'));
+            pc.remoteAudio = audio;
+          };
+          
+          pc.onicecandidate = (event) => {
+            if (event.candidate) {
+              room.send('voice:signal', {
+                to: from,
+                type: 'ice-candidate',
+                data: event.candidate.toJSON()
+              });
+            }
+          };
+          
+          pc.onconnectionstatechange = () => {
+            log(`Connection state with ${from}: ${pc.connectionState}`, 'info');
+          };
+        }
+        
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(data));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          
+          room.send('voice:signal', {
+            to: from,
+            type: 'answer',
+            data: answer
+          });
+          log(`Sent answer to ${from}`, 'success');
+        } catch (err) {
+          log(`Error handling offer: ${err.message}`, 'error');
+        }
+      } else if (type === 'answer') {
+        try {
+          await pc?.setRemoteDescription(new RTCSessionDescription(data));
+          log(`Set remote description from ${from}`, 'success');
+        } catch (err) {
+          log(`Error handling answer: ${err.message}`, 'error');
+        }
+      } else if (type === 'ice-candidate') {
+        try {
+          await pc?.addIceCandidate(new RTCIceCandidate(data));
+        } catch (err) {
+          log(`Error adding ICE candidate: ${err.message}`, 'error');
+        }
+      }
+    }
+    
+    function closePeerConnection(peerId) {
+      const pc = peerConnections.get(peerId);
+      if (pc) {
+        if (pc.remoteAudio) {
+          pc.remoteAudio.srcObject = null;
+        }
+        pc.close();
+        peerConnections.delete(peerId);
+        log(`Closed peer connection with ${peerId}`, 'info');
+        updateMyStatus();
+      }
+    }
+    
+    function joinGlobal() {
+      if (room) {
+        log('Joining global channel...', 'info');
+        room.send('voice:join', { channelId: 'global' });
+      }
+    }
+    
+    function createTeam() {
+      if (room) {
+        const name = prompt('Enter team name:', 'Team ' + Math.floor(Math.random() * 1000));
+        if (name) {
+          log(`Creating team channel: ${name}`, 'info');
+          room.send('voice:create', {
+            name: name,
+            type: 'group',
+            maxMembers: 10
+          });
+        }
+      }
+    }
+    
+    function leaveVoice() {
+      if (room) {
+        log('Leaving voice channel...', 'info');
+        // Close all peer connections
+        peerConnections.forEach((pc, peerId) => closePeerConnection(peerId));
+        peerConnections.clear();
+        
+        room.send('voice:leave');
+      }
+    }
+    
+    function toggleMute() {
+      isMuted = !isMuted;
+      
+      // Mute local audio tracks
+      if (localStream) {
+        localStream.getAudioTracks().forEach(track => {
+          track.enabled = !isMuted;
+        });
+      }
+      
+      // Notify server
+      if (room) {
+        room.send('voice:mute', { muted: isMuted });
+        log(`Mute: ${isMuted}`, 'info');
+      }
+      
+      updateMyStatus();
+    }
+    
+    function toggleDeafen() {
+      isDeafened = !isDeafened;
+      
+      // Mute all remote audio
+      peerConnections.forEach(pc => {
+        if (pc.remoteAudio) {
+          pc.remoteAudio.muted = isDeafened;
+        }
+      });
+      
+      // Notify server
+      if (room) {
+        room.send('voice:deafen', { deafened: isDeafened });
+        log(`Deafen: ${isDeafened}`, 'info');
+      }
+      
+      updateMyStatus();
+    }
+    
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+      disconnect();
+    });
+  </script>
+</body>
+</html>
