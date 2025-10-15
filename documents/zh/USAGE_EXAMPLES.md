@@ -1,100 +1,100 @@
-# MMO Server Usage Examples
+# MMO 服务器使用示例
 
-This file contains examples of how to use the MMO server features.
+本文件包含 MMO 服务器功能的使用示例。
 
-## Client Connection
+## 客户端连接
 
 ```typescript
 import { Client } from 'colyseus.js';
 
 const client = new Client('ws://localhost:2567');
 
-// Join room with player name
+// 使用玩家名称加入房间
 const room = await client.joinOrCreate('my_room', {
   name: 'PlayerName'
 });
 
-console.log('Joined room:', room.id);
+console.log('已加入房间:', room.id);
 ```
 
-## Movement
+## 移动
 
 ```typescript
-// Send movement command
-room.send('move', { x: 1, y: 0 }); // Move right
-room.send('move', { x: -1, y: 0 }); // Move left
-room.send('move', { x: 0, y: 1 }); // Move down
-room.send('move', { x: 0, y: -1 }); // Move up
-room.send('move', { x: 0, y: 0 }); // Stop
+// 发送移动命令
+room.send('move', { x: 1, y: 0 }); // 向右移动
+room.send('move', { x: -1, y: 0 }); // 向左移动
+room.send('move', { x: 0, y: 1 }); // 向下移动
+room.send('move', { x: 0, y: -1 }); // 向上移动
+room.send('move', { x: 0, y: 0 }); // 停止
 ```
 
-## Combat
+## 战斗
 
 ```typescript
-// Attack another player
+// 攻击其他玩家
 room.send('attack', {
   targetId: 'target_session_id'
 });
 
-// Use a skill to attack
+// 使用技能攻击
 room.send('attack', {
   targetId: 'target_session_id',
-  skillId: 'fireball' // or 'heal', 'shield', 'dash'
+  skillId: 'fireball' // 或 'heal', 'shield', 'dash'
 });
 ```
 
-## Chat
+## 聊天
 
 ```typescript
-// Send a global chat message
+// 发送全局聊天消息
 room.send('chat', {
   message: 'Hello everyone!',
   channel: 'global'
 });
 
-// Send a team message
+// 发送队伍消息
 room.send('chat', {
   message: 'Let\'s group up!',
   channel: 'team'
 });
 ```
 
-## Friends
+## 好友
 
 ```typescript
-// Add a friend
+// 添加好友
 room.send('friend', {
   targetId: 'friend_session_id',
   action: 'add'
 });
 
-// Remove a friend
+// 删除好友
 room.send('friend', {
   targetId: 'friend_session_id',
   action: 'remove'
 });
 ```
 
-## Quests
+## 任务
 
 ```typescript
-// Abandon a quest
+// 放弃任务
 room.send('quest', {
   questId: 'kill_enemies_1',
   action: 'abandon'
 });
 ```
 
-## Listening to State Changes
+## 监听状态变化
 
 ```typescript
-// Listen to player changes
+// 监听玩家变化
 room.state.players.onAdd((player, sessionId) => {
-  console.log('Player joined:', sessionId);
+  console.log('玩家加入:', sessionId);
   
-  // Listen to player property changes
+  // 监听玩家属性变化
   player.onChange(() => {
-    console.log('Player updated:', {
+    console.log('玩家更新:', {
       name: player.name,
       level: player.level,
       health: player.health,
@@ -104,66 +104,66 @@ room.state.players.onAdd((player, sessionId) => {
 });
 
 room.state.players.onRemove((player, sessionId) => {
-  console.log('Player left:', sessionId);
+  console.log('玩家离开:', sessionId);
 });
 
-// Listen to chat messages
+// 监听聊天消息
 room.state.chatMessages.onAdd((message) => {
   console.log(`[${message.channel}] ${message.sender}: ${message.message}`);
 });
 
-// Listen to leaderboard changes
+// 监听排行榜变化
 room.state.leaderboard.onChange(() => {
-  console.log('Leaderboard updated:');
+  console.log('排行榜更新:');
   room.state.leaderboard.forEach((entry, index) => {
-    console.log(`${entry.rank}. ${entry.playerName} - Level ${entry.level} - Score: ${entry.score}`);
+    console.log(`${entry.rank}. ${entry.playerName} - 等级 ${entry.level} - 分数: ${entry.score}`);
   });
 });
 ```
 
-## Accessing Player Stats
+## 访问玩家数据
 
 ```typescript
 const myPlayer = room.state.players.get(room.sessionId);
 
-// Character info
-console.log('Level:', myPlayer.level);
-console.log('Experience:', myPlayer.experience, '/', myPlayer.experienceToNext);
+// 角色信息
+console.log('等级:', myPlayer.level);
+console.log('经验:', myPlayer.experience, '/', myPlayer.experienceToNext);
 
-// Combat stats
-console.log('Health:', myPlayer.health, '/', myPlayer.maxHealth);
-console.log('Mana:', myPlayer.mana, '/', myPlayer.maxMana);
-console.log('Attack:', myPlayer.attack);
-console.log('Defense:', myPlayer.defense);
+// 战斗属性
+console.log('生命值:', myPlayer.health, '/', myPlayer.maxHealth);
+console.log('魔法值:', myPlayer.mana, '/', myPlayer.maxMana);
+console.log('攻击:', myPlayer.attack);
+console.log('防御:', myPlayer.defense);
 
-// Skills
+// 技能
 myPlayer.skills.forEach(skill => {
   const cooldownRemaining = Math.max(0, skill.cooldown - (Date.now() - skill.lastUsed));
-  console.log(`${skill.name}: ${cooldownRemaining > 0 ? 'On cooldown' : 'Ready'}`);
+  console.log(`${skill.name}: ${cooldownRemaining > 0 ? '冷却中' : '就绪'}`);
 });
 
-// Quests
+// 任务
 myPlayer.quests.forEach(quest => {
   console.log(`${quest.name}: ${quest.progress}/${quest.target} ${quest.completed ? '✓' : ''}`);
 });
 
-// Achievements
+// 成就
 myPlayer.achievements.forEach(achievement => {
   if (achievement.unlocked) {
     console.log(`✓ ${achievement.name}: ${achievement.description}`);
   }
 });
 
-// Statistics
-console.log('K/D:', myPlayer.kills, '/', myPlayer.deaths);
-console.log('Damage dealt:', myPlayer.damageDealt);
-console.log('Damage taken:', myPlayer.damageTaken);
+// 统计
+console.log('击杀/死亡:', myPlayer.kills, '/', myPlayer.deaths);
+console.log('造成伤害:', myPlayer.damageDealt);
+console.log('承受伤害:', myPlayer.damageTaken);
 
-// Friends
-console.log('Friends:', myPlayer.friends.length);
+// 好友
+console.log('好友:', myPlayer.friends.length);
 ```
 
-## Complete Game Loop Example
+## 完整游戏循环示例
 
 ```typescript
 import { Client } from 'colyseus.js';
@@ -172,21 +172,21 @@ async function main() {
   const client = new Client('ws://localhost:2567');
   const room = await client.joinOrCreate('my_room', { name: 'Hero' });
   
-  console.log('Connected to room:', room.id);
+  console.log('已连接到房间:', room.id);
   
-  // Listen to state
+  // 监听状态
   room.state.players.onAdd((player, sessionId) => {
-    console.log('Player joined:', player.name);
+    console.log('玩家加入:', player.name);
   });
   
   room.state.chatMessages.onAdd((msg) => {
     console.log(`[${msg.channel}] ${msg.sender}: ${msg.message}`);
   });
   
-  // Send initial chat
+  // 发送初始聊天
   room.send('chat', { message: 'Hello world!', channel: 'global' });
   
-  // Game loop
+  // 游戏循环
   let moveDirection = { x: 1, y: 0 };
   let skillCooldowns = {};
   
@@ -194,10 +194,10 @@ async function main() {
     const myPlayer = room.state.players.get(room.sessionId);
     if (!myPlayer) return;
     
-    // Move
+    // 移动
     room.send('move', moveDirection);
     
-    // Use heal skill when low health
+    // 生命值低时使用治疗技能
     if (myPlayer.health < myPlayer.maxHealth * 0.5) {
       const healSkill = myPlayer.skills.find(s => s.id === 'heal');
       if (healSkill) {
@@ -208,10 +208,10 @@ async function main() {
       }
     }
     
-    // Find and attack nearby enemies
+    // 查找并攻击附近的敌人
     room.state.players.forEach((otherPlayer, otherId) => {
       if (otherId !== room.sessionId && !myPlayer.inCombat) {
-        // Calculate distance (simplified)
+        // 计算距离（简化版）
         const dx = otherPlayer.x - myPlayer.x;
         const dy = otherPlayer.y - myPlayer.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -222,64 +222,64 @@ async function main() {
       }
     });
     
-  }, 100); // 10 updates per second
+  }, 100); // 每秒 10 次更新
   
-  // Handle disconnect
+  // 处理断开连接
   room.onLeave((code) => {
-    console.log('Left room with code:', code);
+    console.log('离开房间，代码:', code);
   });
 }
 
 main().catch(console.error);
 ```
 
-## Performance Tips
+## 性能提示
 
-1. **Batch Updates**: Don't send messages on every frame, use a reasonable interval
-2. **Client-side Prediction**: Update local state immediately, reconcile with server
-3. **Interest Management**: Only track nearby entities, not all players
-4. **Throttle State Changes**: Use onChange callbacks judiciously
-5. **Cache Calculations**: Pre-calculate distances and cooldowns
+1. **批量更新**: 不要在每一帧发送消息，使用合理的间隔
+2. **客户端预测**: 立即更新本地状态，然后与服务器协调
+3. **兴趣管理**: 只追踪附近的实体，而不是所有玩家
+4. **节流状态变化**: 谨慎使用 onChange 回调
+5. **缓存计算**: 预计算距离和冷却时间
 
-## Security Notes
+## 安全注意事项
 
-1. All messages are rate-limited on the server
-2. Input is validated and sanitized
-3. Don't trust client data - server is authoritative
-4. Chat messages are filtered for profanity
-5. Player names are validated (alphanumeric, 3-20 chars)
+1. 所有消息在服务器端都有速率限制
+2. 输入已验证和清理
+3. 不要信任客户端数据 - 服务器是权威的
+4. 聊天消息会过滤亵渎内容
+5. 玩家名称已验证（字母数字，3-20 字符）
 
-## Voice Communication
+## 语音通讯
 
-### Joining Voice Channels
+### 加入语音频道
 
 ```typescript
-// Join global voice channel
+// 加入全局语音频道
 room.send('voice:join', { channelId: 'global' });
 
-// Listen for channel updates
+// 监听频道更新
 room.state.voiceChannels.onAdd((channel, channelId) => {
-  console.log('Voice channel available:', channel.name);
+  console.log('语音频道可用:', channel.name);
   
-  // Listen for members
+  // 监听成员
   channel.members.onAdd((member, sessionId) => {
-    console.log(`${member.playerName} joined voice`);
-    if (member.muted) console.log('  (muted)');
+    console.log(`${member.playerName} 加入语音`);
+    if (member.muted) console.log('  (静音)');
   });
 });
 ```
 
-### Creating Voice Channels
+### 创建语音频道
 
 ```typescript
-// Create a team voice channel
+// 创建团队语音频道
 room.send('voice:create', {
   name: 'Team Alpha',
   type: 'group',      // 'global', 'proximity', 'group', 'private'
   maxMembers: 10
 });
 
-// Create a private call
+// 创建私人通话
 room.send('voice:create', {
   name: 'Private Call',
   type: 'private',
@@ -287,26 +287,26 @@ room.send('voice:create', {
 });
 ```
 
-### Voice Controls
+### 语音控制
 
 ```typescript
-// Toggle mute
+// 切换静音
 room.send('voice:mute', { muted: true });
 
-// Toggle deafen (can't hear others)
+// 切换屏蔽（无法听到其他人）
 room.send('voice:deafen', { deafened: true });
 
-// Leave voice channel
+// 离开语音频道
 room.send('voice:leave');
 ```
 
-### WebRTC Voice Setup
+### WebRTC 语音设置
 
 ```typescript
-// Setup peer connections for voice chat
+// 为语音聊天设置对等连接
 const peerConnections = new Map<string, RTCPeerConnection>();
 
-// Create peer connection to another player
+// 创建与其他玩家的对等连接
 async function setupVoiceConnection(peerId: string) {
   const pc = new RTCPeerConnection({
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -314,18 +314,18 @@ async function setupVoiceConnection(peerId: string) {
   
   peerConnections.set(peerId, pc);
   
-  // Add microphone stream
+  // 添加麦克风流
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   stream.getTracks().forEach(track => pc.addTrack(track, stream));
   
-  // Receive audio from peer
+  // 接收对等方的音频
   pc.ontrack = (event) => {
     const audio = new Audio();
     audio.srcObject = event.streams[0];
     audio.play();
   };
   
-  // Handle ICE candidates
+  // 处理 ICE 候选
   pc.onicecandidate = (event) => {
     if (event.candidate) {
       room.send('voice:signal', {
@@ -336,7 +336,7 @@ async function setupVoiceConnection(peerId: string) {
     }
   };
   
-  // Create and send offer
+  // 创建并发送 offer
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
   
@@ -347,7 +347,7 @@ async function setupVoiceConnection(peerId: string) {
   });
 }
 
-// Handle signaling messages
+// 处理信令消息
 room.onMessage('voice:signal', async (message) => {
   const { from, type, data } = message;
   
@@ -359,7 +359,7 @@ room.onMessage('voice:signal', async (message) => {
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       });
       peerConnections.set(from, pc);
-      // ... setup handlers
+      // ... 设置处理器
     }
     
     await pc.setRemoteDescription(new RTCSessionDescription(data));
@@ -378,7 +378,7 @@ room.onMessage('voice:signal', async (message) => {
   }
 });
 
-// When member joins your channel
+// 当成员加入你的频道时
 room.state.voiceChannels.get(myChannelId).members.onAdd((member, sessionId) => {
   if (sessionId !== room.sessionId) {
     setupVoiceConnection(sessionId);
@@ -386,23 +386,23 @@ room.state.voiceChannels.get(myChannelId).members.onAdd((member, sessionId) => {
 });
 ```
 
-### Voice Channel Information
+### 语音频道信息
 
 ```typescript
-// Get current voice channel
+// 获取当前语音频道
 const myPlayer = room.state.players.get(room.sessionId);
 if (myPlayer.currentVoiceChannel) {
   const channel = room.state.voiceChannels.get(myPlayer.currentVoiceChannel);
-  console.log('In channel:', channel.name);
-  console.log('Members:', channel.members.size);
+  console.log('在频道:', channel.name);
+  console.log('成员:', channel.members.size);
   
-  // List members
+  // 列出成员
   channel.members.forEach((member, sessionId) => {
-    console.log(`  - ${member.playerName} ${member.muted ? '(muted)' : ''}`);
+    console.log(`  - ${member.playerName} ${member.muted ? '(静音)' : ''}`);
   });
 }
 
-// List all available channels
+// 列出所有可用频道
 room.state.voiceChannels.forEach((channel, channelId) => {
   console.log(`${channel.name} (${channel.type}): ${channel.members.size}/${channel.maxMembers}`);
 });
