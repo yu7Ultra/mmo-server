@@ -3,6 +3,8 @@ import { monitor } from '@colyseus/monitor';
 import { playground } from '@colyseus/playground';
 import { ConfigOptions } from "@colyseus/tools";
 import { uWebSocketsTransport } from '@colyseus/uwebsockets-transport';
+import { RedisPresence } from '@colyseus/redis-presence';
+import { RedisDriver } from '@colyseus/redis-driver';
 import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
@@ -15,14 +17,15 @@ import { captureCPUProfile, listProfiles, captureHeapSnapshot } from './instrume
 dotenv.config();
 
 const port = Number(process.env.PORT) || 2567;
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisUrl = process.env.REDIS_URL;
 
 // const transport = new uWebSocketsTransport();
 
 const config: ConfigOptions = {
     options: {
-        // presence: new RedisPresence(redisUrl),
-        // driver: new RedisDriver(redisUrl),
+        // Redis-based horizontal scaling (enabled when REDIS_URL is set)
+        presence: redisUrl ? new RedisPresence(redisUrl) : undefined,
+        driver: redisUrl ? new RedisDriver(redisUrl) : undefined,
     },
     initializeTransport() {
         return new uWebSocketsTransport();
@@ -111,6 +114,12 @@ const config: ConfigOptions = {
 
     beforeListen: () => {
         console.log(`Colyseus server starting on port ${port}`);
+        if (redisUrl) {
+            console.log(`Redis scaling enabled: ${redisUrl}`);
+            console.log(`Server instance ready for horizontal scaling`);
+        } else {
+            console.log(`Running in single-server mode (set REDIS_URL for horizontal scaling)`);
+        }
     }
 };
 
