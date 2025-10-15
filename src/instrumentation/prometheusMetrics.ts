@@ -388,3 +388,123 @@ export function recordItemDrop(itemId: string, rarity: string): void {
 export function recordExperience(source: string, amount: number): void {
   experienceGained.labels(source).inc(amount);
 }
+
+// ============================================================================
+// GM Backend Metrics
+// ============================================================================
+
+/**
+ * GM actions performed
+ */
+export const gmActions = new Counter({
+  name: 'gm_actions_total',
+  help: 'Total GM actions performed',
+  labelNames: ['action'],
+  registers: [register]
+});
+
+/**
+ * Banned players (gauge)
+ */
+export const bannedPlayers = new Gauge({
+  name: 'gm_banned_players',
+  help: 'Number of currently banned players',
+  registers: [register]
+});
+
+/**
+ * Muted players (gauge)
+ */
+export const mutedPlayers = new Gauge({
+  name: 'gm_muted_players',
+  help: 'Number of currently muted players',
+  registers: [register]
+});
+
+/**
+ * Active game events (gauge)
+ */
+export const activeGameEvents = new Gauge({
+  name: 'gm_active_events',
+  help: 'Number of currently active game events',
+  registers: [register]
+});
+
+/**
+ * Mail messages sent
+ */
+export const mailSent = new Counter({
+  name: 'gm_mail_sent_total',
+  help: 'Total mail messages sent by GMs',
+  registers: [register]
+});
+
+/**
+ * Rewards sent
+ */
+export const rewardsSent = new Counter({
+  name: 'gm_rewards_sent_total',
+  help: 'Total rewards sent by GMs',
+  labelNames: ['type'], // experience, currency, item
+  registers: [register]
+});
+
+/**
+ * Announcements broadcasted
+ */
+export const announcementsBroadcasted = new Counter({
+  name: 'gm_announcements_total',
+  help: 'Total announcements broadcasted',
+  labelNames: ['type'], // server_wide, scrolling, popup, chat
+  registers: [register]
+});
+
+/**
+ * Record GM action
+ */
+export function recordGMAction(action: string): void {
+  gmActions.labels(action).inc();
+}
+
+/**
+ * Update banned players count
+ */
+export function updateBannedPlayers(count: number): void {
+  bannedPlayers.set(count);
+}
+
+/**
+ * Update muted players count
+ */
+export function updateMutedPlayers(count: number): void {
+  mutedPlayers.set(count);
+}
+
+/**
+ * Update active events count
+ */
+export function updateActiveEvents(count: number): void {
+  activeGameEvents.set(count);
+}
+
+/**
+ * Record mail sent
+ */
+export function recordMailSent(): void {
+  mailSent.inc();
+}
+
+/**
+ * Record reward sent
+ */
+export function recordRewardSent(type: string): void {
+  rewardsSent.labels(type).inc();
+}
+
+/**
+ * Record announcement
+ */
+export function recordAnnouncement(type: string): void {
+  announcementsBroadcasted.labels(type).inc();
+}
+
