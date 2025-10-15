@@ -2,6 +2,7 @@ import { Client, Room } from '@colyseus/core';
 import { World } from 'miniplex';
 import { Command, Entity } from '../entities';
 import { recordMessage, recordPatch, recordSlowTick, recordTick, registerRoom, unregisterRoom, updateAutoProfile, updateClients } from '../instrumentation/metrics';
+import { ENV } from '../config/env';
 import { MyRoomState, Player } from '../schemas/MyRoomState';
 import { inputSystem } from '../systems/inputSystem';
 import { movementSystem } from '../systems/movementSystem';
@@ -35,8 +36,8 @@ export class MyRoom extends Room<MyRoomState> {
         return originalBroadcastPatch.apply(this, args);
       }
     };
-    const slowThreshold = Number(process.env.PERF_SLOW_TICK_MS || 20); // ms
-    const autoProfileCooldownMs = Number(process.env.PERF_AUTO_PROFILE_COOLDOWN_MS || 60000); // default 60s
+  const slowThreshold = ENV.PERF_SLOW_TICK_MS; // ms
+  const autoProfileCooldownMs = ENV.PERF_AUTO_PROFILE_COOLDOWN_MS; // ms
     let lastAutoProfileAt = 0;
     this.setSimulationInterval(() => {
       const start = Date.now();
@@ -52,18 +53,20 @@ export class MyRoom extends Room<MyRoomState> {
         const now = Date.now();
         if (now - lastAutoProfileAt > autoProfileCooldownMs) {
           // Fire and forget 1s CPU profile
-          import('../instrumentation/profiler').then(mod => {
-            mod.captureCPUProfile(1000).then(file => {
+          if (ENV.ENABLE_AUTO_PROFILE) {
+            import('../instrumentation/profiler').then(mod => {
+              mod.captureCPUProfile(ENV.AUTO_PROFILE_DURATION_MS).then(file => {
               updateAutoProfile(this.roomId, file);
               console.warn(`[perf] auto CPU profile captured for room ${this.roomId}: ${file}`);
-            }).catch(err => console.error('[perf] auto profile error', err));
-          }).catch(err => console.error('[perf] profiler import error', err));
+              }).catch(err => console.error('[perf] auto profile error', err));
+            }).catch(err => console.error('[perf] profiler import error', err));
+          }
           lastAutoProfileAt = now;
         }
       }
       updateClients(this.roomId, this.clients.length);
       lastTickTime = end;
-    }, 1000 / 10); // 20 TPS
+    }, 1000 / ENV.TICK_RATE); // configurable TPS
 
     this.onMessage("move", (client, message: { x: number; y: number }) => {
       recordMessage(this.roomId, 'move');
