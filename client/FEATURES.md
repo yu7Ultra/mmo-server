@@ -1,5 +1,7 @@
 # 客户端功能使用指南
 
+> 📚 **注意**: 此文档也可在 [../documents/zh/CLIENT_FEATURES.md](../documents/zh/CLIENT_FEATURES.md) 查看
+
 本文档详细说明了MMO客户端如何使用服务器提供的各项功能。
 
 ## 功能清单

@@ -1,5 +1,7 @@
 # 客户端使用示例
 
+> 📚 **注意**: 此文档也可在 [../documents/zh/CLIENT_USAGE_EXAMPLES.md](../documents/zh/CLIENT_USAGE_EXAMPLES.md) 查看
+
 ## 快速开始
 
 ### 1. 启动服务器

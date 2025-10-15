@@ -2,6 +2,11 @@
 
 基于 Vite + Pixi.js + Colyseus 的 MMO 游戏客户端。
 
+> 📚 **完整文档**: 详细的中文文档请查看 [../documents/zh/](../documents/zh/)
+> - [客户端 README](../documents/zh/CLIENT_README.md)
+> - [客户端功能指南](../documents/zh/CLIENT_FEATURES.md)
+> - [使用示例](../documents/zh/CLIENT_USAGE_EXAMPLES.md)
+
 ## 功能特性
 
 ### 游戏画面
