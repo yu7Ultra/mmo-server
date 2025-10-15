@@ -16,7 +16,20 @@ This server includes essential MMO features:
 - ✅ **Security**: Rate limiting, input validation, and XSS protection
 - ✅ **Performance**: Object pooling, efficient ECS queries, minimal GC
 
-See [FEATURES.md](./FEATURES.md) for detailed documentation on all systems.
+## Documentation
+
+📚 **Complete documentation is available in the [documents/](./documents/) directory**
+
+- **English**: [documents/en/](./documents/en/) - Features, performance, usage examples, voice integration
+- **中文**: [documents/zh/](./documents/zh/) - 客户端文档、Miniplex 指南、使用示例
+
+> 📝 **New Documentation Structure**: See [DOCUMENTATION_MIGRATION.md](./DOCUMENTATION_MIGRATION.md) for the migration guide and file locations.
+
+Quick links:
+- [Feature Documentation](./documents/en/FEATURES.md) - Detailed system documentation
+- [Usage Examples](./documents/en/USAGE_EXAMPLES.md) - Code examples and integration
+- [Performance Guide](./documents/en/PERFORMANCE.md) - Optimization and profiling
+- [Voice Integration](./documents/en/VOICE_INTEGRATION.md) - WebRTC voice communication setup
 
 ## Installation
 
@@ -62,7 +75,7 @@ yarn build
 # Output in client/dist/
 ```
 
-See [client/README.md](./client/README.md) for detailed client documentation.
+See [client/README.md](./client/README.md) for detailed client documentation or [documents/zh/CLIENT_README.md](./documents/zh/CLIENT_README.md) for Chinese version.
 
 ### Message Handlers
 

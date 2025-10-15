@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#f8f9fa"/>
+  
+  <!-- Title -->
+  <text x="400" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#212529">
+    MMO Server Architecture
+  </text>
+  
+  <!-- Client Box -->
+  <rect x="50" y="100" width="200" height="120" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="5"/>
+  <text x="150" y="130" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#1976d2">Client</text>
+  <text x="150" y="155" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#424242">Pixi.js + Vite</text>
+  <text x="150" y="175" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#424242">WebSocket Client</text>
+  <text x="150" y="195" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#424242">Game UI</text>
+  
+  <!-- Server Box -->
+  <rect x="550" y="100" width="200" height="120" fill="#e8f5e9" stroke="#388e3c" stroke-width="2" rx="5"/>
+  <text x="650" y="130" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#388e3c">Server</text>
+  <text x="650" y="155" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#424242">Colyseus + uWS</text>
+  <text x="650" y="175" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#424242">TypeScript + Node.js</text>
+  <text x="650" y="195" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#424242">WebSocket Server</text>
+  
+  <!-- Connection Arrow -->
+  <line x1="250" y1="160" x2="550" y2="160" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="400" y="150" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#666">WebSocket</text>
+  
+  <!-- Room Management Box -->
+  <rect x="500" y="280" width="150" height="80" fill="#fff3e0" stroke="#f57c00" stroke-width="2" rx="5"/>
+  <text x="575" y="305" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#f57c00">Room Manager</text>
+  <text x="575" y="325" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#424242">MyRoom</text>
+  <text x="575" y="345" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#424242">State Sync</text>
+  
+  <!-- ECS Systems Box -->
+  <rect x="150" y="280" width="150" height="80" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="5"/>
+  <text x="225" y="305" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#7b1fa2">ECS Systems</text>
+  <text x="225" y="325" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#424242">Combat, Skills</text>
+  <text x="225" y="345" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#424242">Movement, Chat</text>
+  
+  <!-- State Schema Box -->
+  <rect x="300" y="420" width="200" height="100" fill="#fce4ec" stroke="#c2185b" stroke-width="2" rx="5"/>
+  <text x="400" y="445" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#c2185b">State Schema</text>
+  <text x="400" y="465" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#424242">Players, Quests</text>
+  <text x="400" y="485" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#424242">Achievements, Chat</text>
+  <text x="400" y="505" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#424242">Voice Channels</text>
+  
+  <!-- Arrows from Server to Room and Systems -->
+  <line x1="650" y1="220" x2="575" y2="280" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="650" y1="220" x2="225" y2="280" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Arrows to State -->
+  <line x1="575" y1="360" x2="450" y2="420" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="225" y1="360" x2="350" y2="420" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#666"/>
+    </marker>
+  </defs>
+  
+  <!-- Features List -->
+  <rect x="50" y="430" width="180" height="140" fill="#fff" stroke="#999" stroke-width="1" rx="5"/>
+  <text x="140" y="455" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#212529">Features</text>
+  <text x="60" y="475" font-family="Arial, sans-serif" font-size="11" fill="#424242">✅ Combat System</text>
+  <text x="60" y="495" font-family="Arial, sans-serif" font-size="11" fill="#424242">✅ Skills &amp; Quests</text>
+  <text x="60" y="515" font-family="Arial, sans-serif" font-size="11" fill="#424242">✅ Achievements</text>
+  <text x="60" y="535" font-family="Arial, sans-serif" font-size="11" fill="#424242">✅ Voice Chat (WebRTC)</text>
+  <text x="60" y="555" font-family="Arial, sans-serif" font-size="11" fill="#424242">✅ Performance Metrics</text>
+</svg>
