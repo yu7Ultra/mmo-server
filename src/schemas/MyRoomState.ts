@@ -1,4 +1,5 @@
 import { Schema, MapSchema, ArraySchema, type } from '@colyseus/schema';
+import { Monster } from './Monster';
 
 // Equipment item
 export class EquipmentItem extends Schema {
@@ -138,6 +139,7 @@ export class VoiceSignal extends Schema {
 
 export class MyRoomState extends Schema {
   @type({ map: Player }) players = new MapSchema<Player>();
+  @type({ map: Monster }) monsters = new MapSchema<Monster>();
   @type([ChatMessage]) chatMessages = new ArraySchema<ChatMessage>();
   @type([LeaderboardEntry]) leaderboard = new ArraySchema<LeaderboardEntry>();
   @type({ map: VoiceChannel }) voiceChannels = new MapSchema<VoiceChannel>();

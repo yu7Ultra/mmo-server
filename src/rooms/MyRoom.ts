@@ -5,6 +5,8 @@ import { recordMessage, recordPatch, recordSlowTick, recordTick, registerRoom, u
 import { recordPlayerJoin, recordPlayerLeave } from '../instrumentation/prometheusMetrics';
 import { ENV } from '../config/env';
 import { MyRoomState, Player } from '../schemas/MyRoomState';
+import { Monster } from '../schemas/Monster';
+import { MonsterState } from '../config/monsterConfig';
 import { achievementSystem, initializeAchievements } from '../systems/achievementSystem';
 import { ChatManager } from '../systems/chatSystem';
 import { combatSystem, regenerationSystem } from '../systems/combatSystem';
@@ -16,6 +18,7 @@ import { buffSystem, initializeDefaultSkills, initializeSkillSystem, skillSystem
 import { syncSystem } from '../systems/syncSystem';
 import { VoiceChannelManager } from '../systems/voiceChannelSystem';
 import { RateLimiter, InputValidator } from '../utils/security';
+import { monsterAISystem, initializeMonsterSystem } from '../systems/monsterAI';
 
 
 export class MyRoom extends Room<MyRoomState> {
@@ -39,9 +42,39 @@ export class MyRoom extends Room<MyRoomState> {
     
     // Initialize configuration-based systems
     initializeSkillSystem();
+    initializeMonsterSystem();
     
   // Configure world bounds (could be env-configurable later)
   setWorldBounds(this.state.worldWidth, this.state.worldHeight);
+    
+    // 怪物类型池（与manifest注册一致）
+    const monsterTypes = ['slime', 'bat', 'ghost', 'snake'];
+    const monsterCount = 20;
+    for (let i = 0; i < monsterCount; i++) {
+      const type = monsterTypes[Math.floor(Math.random() * monsterTypes.length)];
+      const x = Math.random() * this.state.worldWidth;
+      const y = Math.random() * this.state.worldHeight;
+      const level = 1 + Math.floor(Math.random() * 3);
+      this.world.add({
+        position: { x, y },
+        velocity: { x: 0, y: 0 },
+  player: new Player(),
+        sessionId: `monster_${i}`,
+        monster: {
+          type,
+          level,
+          health: 100,
+          maxHealth: 100,
+          mana: 0,
+          maxMana: 0,
+          state: MonsterState.IDLE,
+          stateStartTime: Date.now(),
+          spawnPoint: { x, y },
+          lastAttackTime: 0,
+          deathTime: 0
+        }
+      });
+    }
     
     // Initialize voice channels
     this.voiceChannelManager.initializeDefaultChannels(this.state.voiceChannels);
@@ -81,6 +114,9 @@ export class MyRoom extends Room<MyRoomState> {
       skillSystem(this.world);
       buffSystem(this.world);
 
+      // Monster AI
+      monsterAISystem(this.world, deltaTime);
+
       // Quest and achievement systems
       questSystem(this.world);
       achievementSystem(this.world);
@@ -91,8 +127,49 @@ export class MyRoom extends Room<MyRoomState> {
       // Update server time
       this.state.serverTime = Date.now();
 
-      // Sync to schema
-      syncSystem(this.world);
+        // 怪物同步到 schema
+        const monsters = this.world.where(e => e.monster !== undefined);
+        const activeIds = new Set<string>();
+        for (const entity of monsters) {
+          const m = entity.monster;
+          if (!m) continue;
+          if (m.state === 'dead') continue;
+
+          const id = String(entity.id ?? `${m.type}_${m.spawnPoint.x}_${m.spawnPoint.y}`);
+          let monsterSchema = this.state.monsters.get(id);
+          if (!monsterSchema) {
+            monsterSchema = new Monster();
+            monsterSchema.id = id;
+            this.state.monsters.set(id, monsterSchema);
+          }
+
+          monsterSchema.type = m.type;
+          monsterSchema.x = entity.position?.x ?? m.spawnPoint.x;
+          monsterSchema.y = entity.position?.y ?? m.spawnPoint.y;
+          monsterSchema.health = m.health;
+          monsterSchema.maxHealth = m.maxHealth;
+          monsterSchema.mana = m.mana;
+          monsterSchema.maxMana = m.maxMana;
+          monsterSchema.level = m.level;
+          monsterSchema.state = m.state;
+          monsterSchema.stateStartTime = m.stateStartTime;
+          monsterSchema.targetId = m.targetId ?? '';
+
+          activeIds.add(id);
+        }
+
+        // 移除客户端不再需要显示的怪物
+        const removed: string[] = [];
+        this.state.monsters.forEach((_value, key) => {
+          if (!activeIds.has(key)) {
+            removed.push(key);
+          }
+        });
+        for (const key of removed) {
+          this.state.monsters.delete(key);
+        }
+        // 其他状态同步
+        syncSystem(this.world);
 
       const end = Date.now();
       const duration = end - start;

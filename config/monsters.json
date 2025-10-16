@@ -1,49 +1,177 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2025-10-15T17:00:00Z",
+  "lastUpdated": "2025-10-16T08:50:00Z",
   "monsters": {
-    "goblin": {
-      "id": "goblin",
-      "name": "Goblin",
-      "nameZh": "哥布林",
-      "description": "A small aggressive creature",
-      "descriptionZh": "小型攻击性生物",
+    "bat": {
+      "id": "bat",
+      "name": "Bat",
+      "nameZh": "蝙蝠",
+      "description": "A flying creature that attacks in the dark",
+      "descriptionZh": "在黑暗中攻击的飞行生物",
       "type": "aggressive",
-      "level": 5,
+      "level": 4,
       "stats": {
-        "health": 100,
-        "maxHealth": 100,
-        "mana": 50,
-        "maxMana": 50,
-        "attack": 15,
-        "defense": 5,
-        "speed": 80,
-        "attackRange": 50,
-        "detectionRange": 200,
-        "chaseRange": 300
+        "health": 80,
+        "maxHealth": 80,
+        "mana": 30,
+        "maxMana": 30,
+        "attack": 12,
+        "defense": 3,
+        "speed": 100,
+        "attackRange": 45,
+        "detectionRange": 180,
+        "chaseRange": 250
       },
       "ai": {
         "behavior": "aggressive",
-        "idleTime": 3000,
+        "idleTime": 2000,
+        "patrolSpeed": 0.6,
+        "chaseSpeed": 1.4,
+        "returnSpeed": 1.1,
+        "attackCooldown": 1300,
+        "fleeHealthPercent": 0.25
+      },
+      "patrol": {
+        "enabled": true,
+        "type": "random",
+        "radius": 120,
+        "waypoints": []
+      },
+      "skills": ["basic_attack"],
+      "loot": {
+        "experience": 40,
+        "dropTable": [
+          {
+            "itemId": "bat_wing",
+            "chance": 0.7,
+            "minAmount": 1,
+            "maxAmount": 2
+          },
+          {
+            "itemId": "coin",
+            "chance": 0.6,
+            "minAmount": 1,
+            "maxAmount": 4
+          }
+        ]
+      },
+      "respawn": {
+        "enabled": true,
+        "time": 25000
+      }
+    },
+    "ghost": {
+      "id": "ghost",
+      "name": "Ghost",
+      "nameZh": "幽灵",
+      "description": "A spectral entity that haunts the living",
+      "descriptionZh": "困扰生者的幽灵实体",
+      "type": "aggressive",
+      "level": 7,
+      "stats": {
+        "health": 120,
+        "maxHealth": 120,
+        "mana": 60,
+        "maxMana": 60,
+        "attack": 18,
+        "defense": 6,
+        "speed": 90,
+        "attackRange": 55,
+        "detectionRange": 220,
+        "chaseRange": 350
+      },
+      "ai": {
+        "behavior": "aggressive",
+        "idleTime": 3500,
         "patrolSpeed": 0.5,
-        "chaseSpeed": 1.2,
+        "chaseSpeed": 1.3,
         "returnSpeed": 1.0,
-        "attackCooldown": 1500,
+        "attackCooldown": 1600,
         "fleeHealthPercent": 0.2
       },
       "patrol": {
         "enabled": true,
         "type": "random",
-        "radius": 100,
+        "radius": 90,
         "waypoints": []
       },
-      "skills": ["basic_attack"],
+      "skills": ["basic_attack", "fear"],
       "loot": {
-        "experience": 50,
+        "experience": 70,
         "dropTable": [
           {
-            "itemId": "coin",
+            "itemId": "ectoplasm",
             "chance": 0.8,
+            "minAmount": 1,
+            "maxAmount": 2
+          },
+          {
+            "itemId": "coin",
+            "chance": 0.7,
+            "minAmount": 2,
+            "maxAmount": 8
+          }
+        ]
+      },
+      "respawn": {
+        "enabled": true,
+        "time": 40000
+      }
+    },
+    "snake": {
+      "id": "snake",
+      "name": "Snake",
+      "nameZh": "毒蛇",
+      "description": "A venomous reptile that strikes quickly",
+      "descriptionZh": "快速攻击的有毒爬行动物",
+      "type": "aggressive",
+      "level": 6,
+      "stats": {
+        "health": 90,
+        "maxHealth": 90,
+        "mana": 25,
+        "maxMana": 25,
+        "attack": 16,
+        "defense": 4,
+        "speed": 110,
+        "attackRange": 40,
+        "detectionRange": 150,
+        "chaseRange": 200
+      },
+      "ai": {
+        "behavior": "aggressive",
+        "idleTime": 2500,
+        "patrolSpeed": 0.4,
+        "chaseSpeed": 1.2,
+        "returnSpeed": 0.9,
+        "attackCooldown": 1400,
+        "fleeHealthPercent": 0.3
+      },
+      "patrol": {
+        "enabled": true,
+        "type": "random",
+        "radius": 70,
+        "waypoints": []
+      },
+      "skills": ["basic_attack", "poison_bite"],
+      "loot": {
+        "experience": 55,
+        "dropTable": [
+          {
+            "itemId": "snake_skin",
+            "chance": 0.6,
+            "minAmount": 1,
+            "maxAmount": 1
+          },
+          {
+            "itemId": "venom_sac",
+            "chance": 0.4,
+            "minAmount": 1,
+            "maxAmount": 1
+          },
+          {
+            "itemId": "coin",
+            "chance": 0.5,
             "minAmount": 1,
             "maxAmount": 5
           }
@@ -51,134 +179,7 @@
       },
       "respawn": {
         "enabled": true,
-        "time": 30000
-      }
-    },
-    "wolf": {
-      "id": "wolf",
-      "name": "Wolf",
-      "nameZh": "野狼",
-      "description": "A fast predator that hunts in packs",
-      "descriptionZh": "快速捕食者，成群狩猎",
-      "type": "aggressive",
-      "level": 8,
-      "stats": {
-        "health": 150,
-        "maxHealth": 150,
-        "mana": 30,
-        "maxMana": 30,
-        "attack": 20,
-        "defense": 8,
-        "speed": 120,
-        "attackRange": 60,
-        "detectionRange": 250,
-        "chaseRange": 400
-      },
-      "ai": {
-        "behavior": "aggressive",
-        "idleTime": 2000,
-        "patrolSpeed": 0.6,
-        "chaseSpeed": 1.5,
-        "returnSpeed": 1.2,
-        "attackCooldown": 1200,
-        "fleeHealthPercent": 0.15
-      },
-      "patrol": {
-        "enabled": true,
-        "type": "waypoint",
-        "radius": 0,
-        "waypoints": [
-          { "x": 0, "y": 0 },
-          { "x": 100, "y": 0 },
-          { "x": 100, "y": 100 },
-          { "x": 0, "y": 100 }
-        ]
-      },
-      "skills": ["bite", "howl"],
-      "loot": {
-        "experience": 80,
-        "dropTable": [
-          {
-            "itemId": "wolf_pelt",
-            "chance": 0.6,
-            "minAmount": 1,
-            "maxAmount": 1
-          },
-          {
-            "itemId": "coin",
-            "chance": 0.9,
-            "minAmount": 3,
-            "maxAmount": 10
-          }
-        ]
-      },
-      "respawn": {
-        "enabled": true,
-        "time": 45000
-      }
-    },
-    "skeleton": {
-      "id": "skeleton",
-      "name": "Skeleton",
-      "nameZh": "骷髅兵",
-      "description": "An undead warrior",
-      "descriptionZh": "不死战士",
-      "type": "aggressive",
-      "level": 10,
-      "stats": {
-        "health": 200,
-        "maxHealth": 200,
-        "mana": 40,
-        "maxMana": 40,
-        "attack": 25,
-        "defense": 12,
-        "speed": 70,
-        "attackRange": 55,
-        "detectionRange": 180,
-        "chaseRange": 250
-      },
-      "ai": {
-        "behavior": "aggressive",
-        "idleTime": 4000,
-        "patrolSpeed": 0.4,
-        "chaseSpeed": 1.0,
-        "returnSpeed": 0.8,
-        "attackCooldown": 1800,
-        "fleeHealthPercent": 0.0
-      },
-      "patrol": {
-        "enabled": true,
-        "type": "random",
-        "radius": 80,
-        "waypoints": []
-      },
-      "skills": ["slash", "bone_shield"],
-      "loot": {
-        "experience": 100,
-        "dropTable": [
-          {
-            "itemId": "bone",
-            "chance": 0.7,
-            "minAmount": 1,
-            "maxAmount": 3
-          },
-          {
-            "itemId": "rusty_sword",
-            "chance": 0.3,
-            "minAmount": 1,
-            "maxAmount": 1
-          },
-          {
-            "itemId": "coin",
-            "chance": 1.0,
-            "minAmount": 5,
-            "maxAmount": 15
-          }
-        ]
-      },
-      "respawn": {
-        "enabled": true,
-        "time": 60000
+        "time": 35000
       }
     },
     "slime": {

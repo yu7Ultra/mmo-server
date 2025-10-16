@@ -1,10 +1,11 @@
 import { Client, getStateCallbacks, Room } from 'colyseus.js';
-import { Application, Graphics, Text, Container, Sprite } from 'pixi.js';
+import { Application, Graphics, Text, Container, Sprite, Texture } from 'pixi.js';
 import { PLAYER_FRAMES_PER_DIR, Direction, getFrameTexture, PLAYER_FRAME_SIZE } from './assets/playerSheet';
 import { loadGameAssets, getLoadedAssets } from './assets/loaders/assetLoader';
 import { loadTMX, TMXMap } from './map/tmxLoader';
 import { LpcPlayerSprite } from './sprites/lpcPlayer';
 import { MyRoomState } from './states/MyRoomState';
+import { Monster } from './states/Monster';
 import { Player } from './states/Player';
 import './style.css';
 // Modularized game logic
@@ -16,6 +17,24 @@ import { addChatMessage } from './game/chat';
 import { updateLeaderboard } from './game/leaderboard';
 import { createUI, setLoading, setupUIHandlers, updatePlayerUI, updateSkillsUI, updateHotbar } from './game/ui';
 import { initVoiceChat } from './game/voice/voiceManager';
+import { initParticleManager } from './game/particles';
+
+type MonsterVisual = {
+    container: Container;
+    sprite: Sprite;
+    hpBar: Graphics;
+    nameText: Text;
+    frames: Texture[];
+    framesPerDir: number;
+    dir: number;
+    frame: number;
+    animElapsed: number;
+    placeholder: boolean;
+    lastX: number;
+    lastY: number;
+    applyFrame: () => void;
+    unbinders: Array<() => void>;
+};
 
 // Centralized client configuration via Vite env variables.
 // These are defined in .env files (prefixed with VITE_) and exposed through import.meta.env.
@@ -30,6 +49,12 @@ const WORLD_REPEAT_X = Number(import.meta.env.VITE_WORLD_REPEAT_X || 6);
 const WORLD_REPEAT_Y = Number(import.meta.env.VITE_WORLD_REPEAT_Y || 6);
 // Interval for updating cooldown & hotbar UI (ms)
 const COOLDOWN_UI_INTERVAL_MS = Number(import.meta.env.VITE_COOLDOWN_UI_INTERVAL_MS || 100);
+
+// Tiled flip bit masks (see https://doc.mapeditor.org/en/stable/reference/tmx-map-format/) for TMX layers
+const FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
+const FLIPPED_VERTICALLY_FLAG = 0x40000000;
+const FLIPPED_DIAGONALLY_FLAG = 0x20000000;
+const FLIPPED_MASK = FLIPPED_HORIZONTALLY_FLAG | FLIPPED_VERTICALLY_FLAG | FLIPPED_DIAGONALLY_FLAG;
 
 const client = new Client(COLYSEUS_WS_URL);
 
@@ -62,6 +87,7 @@ async function main() {
         backgroundColor: 0x101014,
         antialias: false
     });
+    initParticleManager(app.ticker);
     const gameCanvas = document.getElementById('game-canvas');
     if (gameCanvas) {
         gameCanvas.appendChild(app.canvas);
@@ -80,6 +106,7 @@ async function main() {
 
     // World container (camera target)
     const world = new Container();
+    world.sortableChildren = true;
     app.stage.addChild(world);
 
     // Camera state
@@ -100,6 +127,7 @@ async function main() {
     document.body.appendChild(cameraStatusEl);
 
     const players = new Map<string, PlayerVisual>();
+    const monsters = new Map<string, MonsterVisual>();
     const playersUnCallback = new Map<string, Function[]>();
 
     // Load external assets (LPC + FX). If fails, we still continue with procedural fallback.
@@ -140,17 +168,47 @@ async function main() {
                         layerContainer.zIndex = -1000 + layerIndex; // ensure behind entities
                         world.addChild(layerContainer);
                         const tiles = loadedAssets.tiles!;
+                        const tileWidth = mapData.tilewidth;
+                        const tileHeight = mapData.tileheight;
                         for (let ty = 0; ty < layer.height; ty++) {
                             for (let tx = 0; tx < layer.width; tx++) {
                                 const gid = layer.data[ty * layer.width + tx];
                                 if (!gid) continue;
-                                const tileIndex = gid - mapData.tileset.firstgid;
+                                const flipH = (gid & FLIPPED_HORIZONTALLY_FLAG) !== 0;
+                                const flipV = (gid & FLIPPED_VERTICALLY_FLAG) !== 0;
+                                const flipD = (gid & FLIPPED_DIAGONALLY_FLAG) !== 0;
+                                const rawGid = gid & ~FLIPPED_MASK;
+                                if (!rawGid) continue;
+                                const tileIndex = rawGid - mapData.tileset.firstgid;
                                 const tex = tiles[tileIndex];
                                 if (!tex) continue;
                                 const sprite = new Sprite(tex);
-                                sprite.x = rx * derivedW + tx * mapData.tilewidth;
-                                sprite.y = ry * derivedH + ty * mapData.tileheight;
-                                sprite.anchor.set(0);
+                                sprite.anchor.set(0.5);
+                                const baseX = rx * derivedW + tx * tileWidth;
+                                const baseY = ry * derivedH + ty * tileHeight;
+                                const centerX = baseX + tileWidth / 2;
+                                const centerY = baseY + tileHeight / 2;
+                                let rotation = 0;
+                                let scaleX = 1;
+                                let scaleY = 1;
+                                let h = flipH;
+                                let v = flipV;
+                                if (flipD) {
+                                    rotation = Math.PI / 2;
+                                    const temp = h;
+                                    h = v;
+                                    v = temp;
+                                    scaleY *= -1;
+                                }
+                                if (h) {
+                                    scaleX *= -1;
+                                }
+                                if (v) {
+                                    scaleY *= -1;
+                                }
+                                sprite.position.set(centerX, centerY);
+                                sprite.scale.set(scaleX, scaleY);
+                                sprite.rotation = rotation;
                                 layerContainer.addChild(sprite);
                             }
                         }
@@ -187,6 +245,169 @@ async function main() {
         const currentPlayerId = room.sessionId;
 
         const $$ = getStateCallbacks(room);
+
+        // 怪物渲染监听
+        const MONSTER_DIRECTIONS: Record<string, number> = {
+            slime: 3,
+            bat: 4,
+            goblin: 4,
+            wolf: 4,
+            skeleton: 4
+        };
+
+        $$(room.state).monsters.onAdd((monster: Monster, monsterId: string) => {
+            const assets = getLoadedAssets();
+            const monsterType = monster.type || 'slime';
+            const loadedFrames = assets.lpcMonsters && assets.lpcMonsters[monsterType] ? assets.lpcMonsters[monsterType] : [];
+            const frames: Texture[] = loadedFrames.length > 0 ? loadedFrames : [Texture.WHITE];
+            const placeholder = loadedFrames.length === 0;
+            if (placeholder) {
+                console.warn(`[assets] Missing monster frames for type "${monsterType}"; using placeholder sprite.`);
+            }
+
+            const directions = MONSTER_DIRECTIONS[monsterType] ?? 4;
+            const framesPerDir = Math.max(1, Math.ceil(frames.length / directions));
+
+            const sprite = new Sprite(frames[0]);
+            sprite.anchor.set(0.5);
+            sprite.zIndex = 10;
+
+            if (placeholder) {
+                const placeholderColors: Record<string, number> = {
+                    goblin: 0x2ecc71,
+                    wolf: 0x95a5a6,
+                    skeleton: 0xffffff,
+                    slime: 0x3498db,
+                    bat: 0x9b59b6
+                };
+                sprite.tint = placeholderColors[monsterType] ?? 0xffaa33;
+                sprite.width = 42;
+                sprite.height = 42;
+            }
+
+            // 怪物血条
+            const hpBar = new Graphics();
+            hpBar.beginFill(0x33ff33);
+            hpBar.drawRect(-16, -22, 32 * (monster.health / Math.max(1, monster.maxHealth)), 4);
+            hpBar.endFill();
+
+            // 怪物名
+            const nameText = new Text(monsterType, { fontSize: 12, fill: 0xffffff });
+            nameText.anchor.set(0.5, 1);
+            nameText.y = -26;
+
+            const monsterContainer = new Container();
+            monsterContainer.x = monster.x;
+            monsterContainer.y = monster.y;
+            monsterContainer.zIndex = 10;
+            monsterContainer.addChild(sprite);
+            monsterContainer.addChild(hpBar);
+            monsterContainer.addChild(nameText);
+            world.addChild(monsterContainer);
+
+            const visual: MonsterVisual = {
+                container: monsterContainer,
+                sprite,
+                hpBar,
+                nameText,
+                frames,
+                framesPerDir,
+                dir: 2,
+                frame: 0,
+                animElapsed: 0,
+                placeholder,
+                lastX: monster.x,
+                lastY: monster.y,
+                applyFrame: () => {},
+                unbinders: []
+            };
+
+            const computeSheetDirection = (dir: number) => {
+                let sheetDir = dir;
+                let flipX = false;
+                const availableDirs = Math.max(1, Math.floor(visual.frames.length / visual.framesPerDir));
+
+                if (availableDirs < 4) {
+                    // Typical LPC ordering: 0=down,1=left,2=right,3=up (or missing right)
+                    switch (dir) {
+                        case 0: // up
+                            sheetDir = availableDirs >= 3 ? 2 : availableDirs - 1;
+                            break;
+                        case 1: // right
+                            sheetDir = availableDirs >= 2 ? 1 : 0;
+                            flipX = availableDirs >= 2;
+                            break;
+                        case 2: // down
+                            sheetDir = 0;
+                            break;
+                        case 3: // left
+                            sheetDir = availableDirs >= 2 ? 1 : 0;
+                            flipX = false;
+                            break;
+                        default:
+                            sheetDir = Math.min(availableDirs - 1, dir);
+                    }
+                } else {
+                    sheetDir = Math.min(availableDirs - 1, dir);
+                }
+
+                return { sheetDir, flipX };
+            };
+
+            visual.applyFrame = () => {
+                if (visual.frames.length === 0) return;
+                const { sheetDir, flipX } = computeSheetDirection(visual.dir);
+                const baseIndex = sheetDir * visual.framesPerDir + visual.frame;
+                const total = visual.frames.length;
+                const frameIndex = total > 0 ? (baseIndex % total + total) % total : 0;
+                visual.sprite.texture = visual.frames[frameIndex];
+                if (!visual.placeholder) {
+                    const scaleX = Math.abs(visual.sprite.scale.x) || 1;
+                    visual.sprite.scale.x = flipX ? -scaleX : scaleX;
+                }
+            };
+
+            visual.applyFrame();
+
+            monsters.set(monsterId, visual);
+
+            const unbindX = $$(monster).listen('x', v => {
+                visual.container.x = v;
+                const deltaX = v - visual.lastX;
+                if (Math.abs(deltaX) > 0.1) {
+                    visual.dir = deltaX > 0 ? 1 : 3;
+                    visual.applyFrame();
+                }
+                visual.lastX = v;
+            });
+
+            const unbindY = $$(monster).listen('y', v => {
+                visual.container.y = v;
+                const deltaY = v - visual.lastY;
+                if (Math.abs(deltaY) > 0.1) {
+                    visual.dir = deltaY > 0 ? 2 : 0;
+                    visual.applyFrame();
+                }
+                visual.lastY = v;
+            });
+
+            const unbindHealth = $$(monster).listen('health', v => {
+                hpBar.width = 32 * (v / Math.max(1, monster.maxHealth));
+            });
+
+            visual.unbinders.push(unbindX, unbindY, unbindHealth);
+
+            // Animation will be handled by the main Pixi ticker loop
+        });
+
+        $$(room.state).monsters.onRemove((_monster: Monster, monsterId: string) => {
+            const visual = monsters.get(monsterId);
+            if (visual) {
+                visual.unbinders.forEach(unbind => unbind());
+                world.removeChild(visual.container);
+                monsters.delete(monsterId);
+            }
+        });
 
         // Setup UI handlers
         setupUIHandlers(room, currentPlayerId);
@@ -516,6 +737,18 @@ async function main() {
                     (lpcContainer as any).options.getMoving = () => speed > 2;
                     visual.action = speed > 2 ? 'walk' : 'idle';
                     lpcContainer.update(dtMs / 1000);
+                }
+            });
+
+            // Update monster animations
+            monsters.forEach((visual) => {
+                if (!visual.placeholder) {
+                    visual.animElapsed += dtMs;
+                    if (visual.animElapsed >= 200) {
+                        visual.frame = (visual.frame + 1) % visual.framesPerDir;
+                        visual.applyFrame();
+                        visual.animElapsed = 0;
+                    }
                 }
             });
 

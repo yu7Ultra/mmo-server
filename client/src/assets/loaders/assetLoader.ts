@@ -19,9 +19,10 @@ export interface LoadedAssets {
   player: LoadedPlayerSheet | null;
   fx: LoadedFxAtlas | null;
   tiles: Texture[] | null; // 16x16 ground / decoration tiles
+  lpcMonsters: { [type: string]: Texture[] };
 }
 
-const cache: LoadedAssets = { player: null, fx: null, tiles: null };
+const cache: LoadedAssets = { player: null, fx: null, tiles: null, lpcMonsters: {} };
 
 async function loadTexture(def: AssetDefinition): Promise<Texture> {
   // Pixi v8 Assets.load returns a Texture when given an image URL.
@@ -52,13 +53,13 @@ export async function loadGameAssets(): Promise<LoadedAssets> {
   // load sequentially (manifest small). Could parallelize with Promise.all if needed.
   for (const def of manifest) {
     try {
-  const tex = await loadTexture(def);
-  const frames = sliceSheet(tex, def.frameWidth!, def.frameHeight!);
+      const tex = await loadTexture(def);
+      const frames = sliceSheet(tex, def.frameWidth!, def.frameHeight!);
       if (def.name === 'player_lpc_walkcycle') {
         cache.player = {
           frames,
           frameWidth: def.frameWidth!,
-            frameHeight: def.frameHeight!,
+          frameHeight: def.frameHeight!,
           framesPerDirection: (def.frames ?? 32) / (def.directions ?? 4),
           directions: def.directions ?? 4
         };
@@ -70,6 +71,10 @@ export async function loadGameAssets(): Promise<LoadedAssets> {
         };
       } else if (def.name === 'pirates_tilemap') {
         cache.tiles = frames;
+      } else if (def.name.startsWith('monster_')) {
+        // 怪物资源，类型如 monster_slime
+        const type = def.name.replace('monster_', '');
+        cache.lpcMonsters[type] = frames;
       }
     } catch (err) {
       console.warn('[assetLoader] Failed to load', def.name, err);

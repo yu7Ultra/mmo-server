@@ -196,11 +196,42 @@ export const buffSystem = (world: World<Entity>) => {
   for (const entity of world.entities) {
     if (!entity.buffs || entity.buffs.length === 0) continue;
     
-    // Remove expired buffs (iterate backwards for safe removal)
+    // Reset player stats to base values before applying buffs
+    if (entity.player) {
+      // Store base stats if not already stored
+      if (!(entity.player as any)._baseStats) {
+        (entity.player as any)._baseStats = {
+          speed: entity.player.speed,
+          defense: entity.player.defense,
+          attack: entity.player.attack
+        };
+      }
+      
+      // Reset to base stats
+      const baseStats = (entity.player as any)._baseStats;
+      entity.player.speed = baseStats.speed;
+      entity.player.defense = baseStats.defense;
+      entity.player.attack = baseStats.attack;
+    }
+    
+    // Remove expired buffs and apply active buffs
     for (let i = entity.buffs.length - 1; i >= 0; i--) {
       const buff = entity.buffs[i];
       if (now - buff.startTime >= buff.duration) {
         entity.buffs.splice(i, 1);
+      } else if (entity.player) {
+        // Apply active buff to player stats
+        switch (buff.type) {
+          case 'speed':
+            entity.player.speed += buff.value;
+            break;
+          case 'defense':
+            entity.player.defense += buff.value;
+            break;
+          case 'attack':
+            entity.player.attack += buff.value;
+            break;
+        }
       }
     }
   }

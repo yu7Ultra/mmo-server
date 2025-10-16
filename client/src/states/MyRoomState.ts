@@ -10,9 +10,11 @@ import { Player } from './Player'
 import { ChatMessage } from './ChatMessage'
 import { LeaderboardEntry } from './LeaderboardEntry'
 import { VoiceChannel } from './VoiceChannel'
+import { Monster } from './Monster'
 
 export class MyRoomState extends Schema {
     @type({ map: Player }) public players: MapSchema<Player> = new MapSchema<Player>();
+    @type({ map: Monster }) public monsters: MapSchema<Monster> = new MapSchema<Monster>();
     @type([ ChatMessage ]) public chatMessages: ArraySchema<ChatMessage> = new ArraySchema<ChatMessage>();
     @type([ LeaderboardEntry ]) public leaderboard: ArraySchema<LeaderboardEntry> = new ArraySchema<LeaderboardEntry>();
     @type({ map: VoiceChannel }) public voiceChannels: MapSchema<VoiceChannel> = new MapSchema<VoiceChannel>();
