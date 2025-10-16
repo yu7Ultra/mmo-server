@@ -128,6 +128,99 @@ const config: ConfigOptions = {
                 timestamp: Date.now(),
             });
         });
+        
+        // Ticket System endpoints
+        app.post('/tickets', (req, res) => {
+            const { playerId, playerName, category, subject, description, priority, attachments } = req.body;
+            const ticketSystem = require('./tickets/ticketSystem').getTicketSystem();
+            const ticket = ticketSystem.createTicket(
+                playerId,
+                playerName,
+                category,
+                subject,
+                description,
+                priority,
+                attachments
+            );
+            res.json({ status: 'ok', ticket });
+        });
+        
+        app.get('/tickets', (req, res) => {
+            const ticketSystem = require('./tickets/ticketSystem').getTicketSystem();
+            const status = req.query.status as string | undefined;
+            const playerId = req.query.playerId as string | undefined;
+            
+            let tickets;
+            if (playerId) {
+                tickets = ticketSystem.getPlayerTickets(playerId);
+            } else if (status) {
+                tickets = ticketSystem.getTicketsByStatus(status as any);
+            } else {
+                tickets = ticketSystem.getOpenTickets();
+            }
+            
+            res.json({ tickets, timestamp: Date.now() });
+        });
+        
+        app.get('/tickets/:id', (req, res) => {
+            const ticketSystem = require('./tickets/ticketSystem').getTicketSystem();
+            const ticket = ticketSystem.getTicket(req.params.id);
+            
+            if (!ticket) {
+                res.status(404).json({ error: 'Ticket not found' });
+                return;
+            }
+            
+            res.json({ ticket });
+        });
+        
+        app.post('/tickets/:id/responses', (req, res) => {
+            const { authorId, authorName, isStaff, message, attachments, internal } = req.body;
+            const ticketSystem = require('./tickets/ticketSystem').getTicketSystem();
+            const response = ticketSystem.addResponse(
+                req.params.id,
+                authorId,
+                authorName,
+                isStaff,
+                message,
+                attachments,
+                internal
+            );
+            
+            if (!response) {
+                res.status(404).json({ error: 'Ticket not found' });
+                return;
+            }
+            
+            res.json({ status: 'ok', response });
+        });
+        
+        app.get('/tickets/stats', (req, res) => {
+            const ticketSystem = require('./tickets/ticketSystem').getTicketSystem();
+            res.json({ stats: ticketSystem.getTicketStats(), timestamp: Date.now() });
+        });
+        
+        app.get('/faqs', (req, res) => {
+            const ticketSystem = require('./tickets/ticketSystem').getTicketSystem();
+            const category = req.query.category as string | undefined;
+            const query = req.query.q as string | undefined;
+            
+            let faqs;
+            if (query) {
+                faqs = ticketSystem.searchFAQs(query);
+            } else {
+                faqs = ticketSystem.getFAQs(category as any);
+            }
+            
+            res.json({ faqs });
+        });
+        
+        app.get('/templates', (req, res) => {
+            const ticketSystem = require('./tickets/ticketSystem').getTicketSystem();
+            const category = req.query.category as string | undefined;
+            const templates = ticketSystem.getTemplates(category as any);
+            res.json({ templates });
+        });
 
         // Register the monitoring panel only in development
         if (process.env.NODE_ENV === 'development') {

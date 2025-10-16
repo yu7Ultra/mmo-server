@@ -579,3 +579,112 @@ export function recordSecurityAction(action: string): void {
   securityActions.labels(action).inc();
 }
 
+// ============================================================================
+// Customer Service Ticket Metrics
+// ============================================================================
+
+/**
+ * Tickets created
+ */
+export const tickets_created_total = new Counter({
+  name: 'tickets_created_total',
+  help: 'Total tickets created',
+  labelNames: ['category', 'priority'],
+  registers: [register]
+});
+
+/**
+ * Open tickets gauge
+ */
+export const tickets_open = new Gauge({
+  name: 'tickets_open',
+  help: 'Number of currently open tickets',
+  registers: [register]
+});
+
+/**
+ * Ticket responses
+ */
+export const ticket_responses_total = new Counter({
+  name: 'ticket_responses_total',
+  help: 'Total ticket responses',
+  labelNames: ['is_staff'], // true/false
+  registers: [register]
+});
+
+/**
+ * Tickets resolved
+ */
+export const tickets_resolved_total = new Counter({
+  name: 'tickets_resolved_total',
+  help: 'Total tickets resolved',
+  labelNames: ['category'],
+  registers: [register]
+});
+
+/**
+ * Tickets closed
+ */
+export const tickets_closed_total = new Counter({
+  name: 'tickets_closed_total',
+  help: 'Total tickets closed',
+  labelNames: ['category'],
+  registers: [register]
+});
+
+// ============================================================================
+// Export all metrics as a structured object
+// ============================================================================
+
+export function getPrometheusMetrics() {
+  return {
+    // Server metrics
+    eventLoopLag,
+    roomCount,
+    totalClients,
+    roomClients,
+    tickDuration,
+    messagesReceived,
+    patchesSent,
+    patchBytes,
+    slowTicks,
+    
+    // Game metrics
+    playerJoins,
+    playerLeaves,
+    combatEncounters,
+    damageDealt,
+    skillsUsed,
+    questCompletions,
+    achievementsUnlocked,
+    chatMessages,
+    playerLevel,
+    playerDeaths,
+    playerKills,
+    itemDrops,
+    experienceGained,
+    
+    // GM metrics
+    gmActions,
+    bannedPlayers,
+    mutedPlayers,
+    activeGameEvents,
+    mailSent,
+    rewardsSent,
+    announcementsBroadcasted,
+    
+    // Security metrics
+    securityViolations,
+    securityReports,
+    securityBannedPlayers,
+    securityActions,
+    
+    // Ticket metrics
+    tickets_created_total,
+    tickets_open,
+    ticket_responses_total,
+    tickets_resolved_total,
+    tickets_closed_total
+  };
+}
+
