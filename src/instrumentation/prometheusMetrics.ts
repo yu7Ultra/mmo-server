@@ -508,3 +508,74 @@ export function recordAnnouncement(type: string): void {
   announcementsBroadcasted.labels(type).inc();
 }
 
+// ============================================================================
+// Security & Anti-cheat Metrics
+// ============================================================================
+
+/**
+ * Security violations detected
+ */
+export const securityViolations = new Counter({
+  name: 'security_violations_total',
+  help: 'Total security violations detected',
+  labelNames: ['type'], // speed_hack, teleport, attack_spam, etc.
+  registers: [register]
+});
+
+/**
+ * Player reports submitted
+ */
+export const securityReports = new Counter({
+  name: 'security_reports_total',
+  help: 'Total player reports submitted',
+  labelNames: ['category'], // cheating, harassment, botting, etc.
+  registers: [register]
+});
+
+/**
+ * Auto-banned players
+ */
+export const securityBannedPlayers = new Gauge({
+  name: 'security_banned_players',
+  help: 'Number of players auto-banned for security violations',
+  registers: [register]
+});
+
+/**
+ * Security actions taken
+ */
+export const securityActions = new Counter({
+  name: 'security_actions_taken',
+  help: 'Total security actions taken',
+  labelNames: ['action'], // warning, kick, ban
+  registers: [register]
+});
+
+/**
+ * Record security violation
+ */
+export function recordSecurityViolation(type: string): void {
+  securityViolations.labels(type).inc();
+}
+
+/**
+ * Record security report
+ */
+export function recordSecurityReport(category: string): void {
+  securityReports.labels(category).inc();
+}
+
+/**
+ * Update security banned players
+ */
+export function updateSecurityBannedPlayers(count: number): void {
+  securityBannedPlayers.set(count);
+}
+
+/**
+ * Record security action
+ */
+export function recordSecurityAction(action: string): void {
+  securityActions.labels(action).inc();
+}
+
