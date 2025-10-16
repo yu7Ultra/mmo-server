@@ -3,9 +3,13 @@ import type { MyRoomState } from '../../states/MyRoomState';
 import { getStateCallbacks } from 'colyseus.js';
 import { voiceState, rtcConfig } from './voiceTypes';
 import { ensureVoicePanel, updateVoiceDisplay, wireVoiceButtons, setVoiceButtonsState, updateInputLevel } from './voiceUI';
+import { createRTCProvider } from '../../rtc/providerFactory';
+import { RTC_CONFIG } from '../../rtc/rtcConfig';
+import type { IRTCProvider } from '../../rtc/IRTCProvider';
 
 // Basic debounce for ICE flood (optional future improvement)
 
+let rtcProvider: IRTCProvider | null = null;
 export async function initVoiceChat(room: Room<MyRoomState>, currentPlayerId: string) {
   ensureVoicePanel();
   const $$ = getStateCallbacks(room);
@@ -34,67 +38,88 @@ export async function initVoiceChat(room: Room<MyRoomState>, currentPlayerId: st
   }
 
   // Signaling
-  room.onMessage('voice:signal', (msg: any) => handleSignal(room, msg));
+  room.onMessage('voice:signal', (msg: any) => {
+    if (rtcProvider && (rtcProvider as any).handleSignal) {
+      (rtcProvider as any).handleSignal(msg);
+    } else {
+      handleSignal(room, msg);
+    }
+  });
 
   // Buttons
+  // Initialize chosen provider with fallback to native
+  const desiredKey = RTC_CONFIG.provider;
+  rtcProvider = createRTCProvider(desiredKey);
+  let initialized = false;
+  try {
+    await (rtcProvider as any).init({
+      userId: currentPlayerId,
+      userName: room.sessionId.substring(0, 6),
+      channelId: undefined,
+      debug: RTC_CONFIG.debug,
+      sessionId: room.sessionId,
+      signalSend: (payload: any) => room.send('voice:signal', payload)
+    });
+    initialized = true;
+    console.log(`[voice] RTC provider '${desiredKey}' initialized`);
+  } catch (e) {
+    console.error(`[voice] provider '${desiredKey}' init failed, falling back to native`, e);
+  }
+  if (!initialized && desiredKey !== 'native') {
+    try {
+      rtcProvider = createRTCProvider('native');
+      await (rtcProvider as any).init({
+        userId: currentPlayerId,
+        userName: room.sessionId.substring(0, 6),
+        channelId: undefined,
+        debug: RTC_CONFIG.debug,
+        sessionId: room.sessionId,
+        signalSend: (payload: any) => room.send('voice:signal', payload)
+      });
+      console.log('[voice] Fallback to native provider succeeded');
+    } catch (e2) {
+      console.error('[voice] native provider fallback failed; voice disabled', e2);
+      rtcProvider = null;
+    }
+  }
+
+  // Provider-based input level loop
+  let providerLevelRAF: number | null = null;
+  const startProviderLevelLoop = () => {
+    if (!rtcProvider) return;
+    const loop = () => {
+      if (!rtcProvider) return;
+      try {
+        const lvl = rtcProvider.getLocalAudioLevel();
+        updateInputLevel(lvl);
+      } catch (_) {}
+      providerLevelRAF = requestAnimationFrame(loop);
+    };
+    loop();
+  };
+  const stopProviderLevelLoop = () => { if (providerLevelRAF) cancelAnimationFrame(providerLevelRAF); providerLevelRAF = null; };
+  if (rtcProvider) startProviderLevelLoop();
+
   wireVoiceButtons(
     room,
     currentPlayerId,
     async () => {
-      if (!voiceState.localStream) {
-        try {
-          voiceState.localStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-          });
-          startLevelMeter(voiceState.localStream);
-        } catch (e: any) {
-          let msg = '麦克风获取失败';
-            if (e && e.name) {
-              switch (e.name) {
-                case 'NotAllowedError':
-                case 'PermissionDeniedError':
-                  msg = '用户拒绝了麦克风访问，或此页面不是安全上下文(请使用 HTTPS 或 localhost)。';
-                  break;
-                case 'NotFoundError':
-                  msg = '未找到可用的麦克风设备。';
-                  break;
-                case 'NotReadableError':
-                case 'AbortError':
-                  msg = '麦克风被其他程序占用或暂时不可用。';
-                  break;
-                case 'SecurityError':
-                  msg = '安全策略阻止访问，请确认使用 localhost 或 HTTPS。';
-                  break;
-                case 'OverconstrainedError':
-                  msg = '请求的音频约束无法满足(设备或参数不支持)。';
-                  break;
-              }
-            }
-          console.error('[voice] getUserMedia error:', e);
-          alert(msg);
-          return; }
-      }
       room.send('voice:join', { channelId: 'global' });
+      if (rtcProvider) await rtcProvider.joinChannel('global');
     },
     () => {
-      voiceState.peerConnections.forEach((_pc, id) => closePeer(id));
-      voiceState.peerConnections.clear();
+      if (rtcProvider) rtcProvider.leaveChannel().catch(() => {});
       room.send('voice:leave');
       updateVoiceDisplay(room);
     },
     () => { // mute
       voiceState.isMuted = !voiceState.isMuted;
-      if (voiceState.localStream) {
-        voiceState.localStream.getAudioTracks().forEach(t => t.enabled = !voiceState.isMuted);
-      }
+      if (rtcProvider) rtcProvider.setMute(voiceState.isMuted);
       room.send('voice:mute', { muted: voiceState.isMuted });
     },
     () => { // deafen
       voiceState.isDeafened = !voiceState.isDeafened;
-      voiceState.peerConnections.forEach(pc => {
-        const audio: HTMLAudioElement | undefined = (pc as any).remoteAudio;
-        if (audio) audio.muted = voiceState.isDeafened;
-      });
+      if (rtcProvider) rtcProvider.setDeafen(voiceState.isDeafened);
       room.send('voice:deafen', { deafened: voiceState.isDeafened });
     }
   );
@@ -105,6 +130,8 @@ export async function initVoiceChat(room: Room<MyRoomState>, currentPlayerId: st
   // Cleanup on room leave
   room.onLeave(() => {
     shutdownVoice();
+    if (rtcProvider) rtcProvider.destroy().catch(() => {});
+    stopProviderLevelLoop();
     setVoiceButtonsState(false);
   });
 
@@ -112,6 +139,8 @@ export async function initVoiceChat(room: Room<MyRoomState>, currentPlayerId: st
   window.addEventListener('beforeunload', () => {
     try { room.send('voice:leave'); } catch (_) {}
     shutdownVoice();
+    if (rtcProvider) rtcProvider.destroy().catch(() => {});
+    stopProviderLevelLoop();
   }, { once: true });
 }
 

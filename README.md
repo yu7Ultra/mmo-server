@@ -170,6 +170,80 @@ node client/dist/command/spawn-mock.js --count 200 --interval 1000
 -- Optional Prometheus `prom-client` integration (replace manual text builder).
 -- OpenTelemetry spans for tick & broadcast phases.
 -- Redis presence/driver activation for horizontal scaling.
+-- Pluggable multi-vendor RTC (Agora / Tencent / Aliyun / ZEGO) full implementations.
+
+## RTC Provider Selection (Voice)
+
+The voice system now supports a pluggable RTC provider architecture. A lightweight native WebRTC peer-to-peer implementation is the default and can fall back automatically if a selected cloud provider fails to initialize.
+
+### Selecting a Provider
+
+Set a global before the client bundle executes (e.g. inject via server template or a small inline script):
+```html
+<script>
+	window.__RTC_PROVIDER__ = 'agora'; // 'native' | 'tencent' | 'aliyun' | 'zego'
+	window.__RTC_APP_ID__ = 'YOUR_APP_ID'; // if required by provider
+	window.__RTC_TOKEN_ENDPOINT__ = '/rtc/token'; // endpoint returning { token: string }
+	window.__RTC_DEBUG__ = true; // optional verbose logs
+</script>
+```
+
+If initialization fails the system logs an error and falls back to the `native` provider.
+
+### Implementation Status
+
+| Provider | Status | Notes |
+|----------|--------|-------|
+| native   | ✅ functional | Direct WebRTC + custom signaling via Colyseus messages |
+| agora    | 🔧 stub       | Placeholder class; integrate `agora-rtc-sdk-ng` dynamically |
+| tencent  | 🔧 stub       | Placeholder; integrate TRTC Web SDK dynamically |
+| aliyun   | 🔧 stub       | Placeholder; integrate Aliyun RTC Web SDK dynamically |
+| zego     | 🔧 stub       | Placeholder; integrate ZegoExpress Web SDK dynamically |
+
+### Adding a Cloud Provider Token Flow
+
+1. Server exposes `/rtc/token?channel=global&userId=<session>` returning JSON `{ token: string }`.
+2. Provider stub fetches token before calling its SDK `joinChannel/enterRoom`.
+3. Replace stub `init` + `joinChannel` with actual SDK API calls; forward remote tracks via `onRemoteTrack`.
+4. Update level metering: either use provider SDK volume indications or create an `AudioContext` analyser per remote stream.
+
+### Fallback Logic
+
+`voiceManager` tries the selected provider first; on error it logs and re-initializes the native provider. A second failure disables voice gracefully.
+
+### Extending Providers
+
+Each provider implements the `IRTCProvider` interface: `init`, `joinChannel`, `leaveChannel`, `setMute`, `setDeafen`, `onRemoteTrack`, level getters, and `destroy`. See `client/src/rtc/providers/nativeProvider.ts` for a full reference implementation.
+
+For implementation details and progressive enhancement notes see `VOICE_IMPLEMENTATION_SUMMARY.md`.
+
+### Client Environment Variables
+
+Client configuration is now driven by Vite `.env` files. Example: `client/.env.example`.
+
+Variables (all must start with `VITE_`):
+
+- `VITE_COLYSEUS_WS_URL` – WebSocket endpoint for Colyseus (e.g. `ws://localhost:2567`)
+- `VITE_COLYSEUS_ROOM` – Default room name pre-filled in test page
+- `VITE_PLAYER_NAME_PREFIX` – Prefix used when auto-generating random player names
+- `VITE_ASSET_TMX` – TMX map file path; blank disables TMX loading (procedural fallback used)
+- `VITE_WORLD_REPEAT_X` / `VITE_WORLD_REPEAT_Y` – How many times to tile the loaded TMX map horizontally/vertically to synthesize a larger world
+- `VITE_COOLDOWN_UI_INTERVAL_MS` – Interval (ms) for updating skill cooldown & hotbar UI
+- `VITE_RTC_PROVIDER` – `native | agora | tencent | aliyun | zego`
+- `VITE_AGORA_APP_ID`, `VITE_TENCENT_SDK_APP_ID`, `VITE_ALIYUN_APP_ID`, `VITE_ZEGO_APP_ID` – Cloud provider App IDs (only one typically used per deployment)
+- `VITE_RTC_TOKEN_ENDPOINT` – Token endpoint returning `{ token: string }`
+- `VITE_RTC_DEBUG` – `true` enables verbose RTC logs
+
+Access in code via `import.meta.env.VITE_*`. For legacy inline script usage (like `voice-test.html`), selected values are also exposed as `window.__RTC_*` and `window.__COLYSEUS_*` through `vite.config.js define`.
+
+Setup steps:
+1. Copy `client/.env.example` to `client/.env.development`.
+2. Fill provider AppId and set `VITE_RTC_PROVIDER`.
+3. Create `client/.env.production` with production URLs for builds.
+4. Run `yarn dev` or `yarn build` – Vite injects variables automatically.
+
+Do NOT store secret keys in client `.env` files; issue short-lived tokens server-side via `/rtc/token`.
+
 
 ### Profiling (Flame Graph / 火焰图)
 

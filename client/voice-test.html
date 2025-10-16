@@ -1,32 +1,141 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>MMO Voice / Audio 功能测试</title>
   <meta charset="UTF-8" />
   <style>
-    body { font-family: system-ui, Arial, sans-serif; padding: 18px; background:#121212; color:#e2e2e2; }
-    h1 { color:#4CAF50; margin:0 0 12px; }
-    h2 { color:#2196F3; margin:10px 0; font-size:18px; }
-    .section { background:#1e1e1e; border:1px solid #333; border-radius:6px; padding:14px; margin-bottom:14px; }
-    button { background:#2d7d46; color:#fff; border:none; border-radius:4px; padding:6px 12px; cursor:pointer; font-size:13px; }
-    button:hover { background:#2b6f40; }
-    button:disabled { background:#444; cursor:not-allowed; }
-    input, select { font-size:13px; }
-    .channel { border:1px solid #444; background:#262626; border-radius:4px; padding:8px; margin:6px 0; }
-    .member { font-size:12px; line-height:16px; }
-    .member.muted { opacity:.6; }
-    #status { padding:8px 12px; border-radius:4px; background:#2f2f2f; font-size:14px; }
-    .log { font-family:monospace; font-size:11px; background:#111; border:1px solid #222; padding:8px; height:220px; overflow-y:auto; }
-    .log-entry { padding:2px 0; border-bottom:1px solid #1f1f1f; }
-    .error { color:#ff5252; }
-    .success { color:#4CAF50; }
-    .info { color:#64b5f6; }
-    .meter {position:relative;width:160px;height:10px;background:#222;border:1px solid #444;border-radius:3px;overflow:hidden;}
-    .meter .fill {position:absolute;left:0;top:0;height:100%;width:0;background:linear-gradient(90deg,#2ecc71,#f1c40f,#e67e22,#e74c3c);} 
-    #vad-indicator { transition:.15s background,color; }
-    .member.speaking { background:#203820; border-left:3px solid #2ecc71; }
+    body {
+      font-family: system-ui, Arial, sans-serif;
+      padding: 18px;
+      background: #121212;
+      color: #e2e2e2;
+    }
+
+    h1 {
+      color: #4CAF50;
+      margin: 0 0 12px;
+    }
+
+    h2 {
+      color: #2196F3;
+      margin: 10px 0;
+      font-size: 18px;
+    }
+
+    .section {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    button {
+      background: #2d7d46;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    button:hover {
+      background: #2b6f40;
+    }
+
+    button:disabled {
+      background: #444;
+      cursor: not-allowed;
+    }
+
+    input,
+    select {
+      font-size: 13px;
+    }
+
+    .channel {
+      border: 1px solid #444;
+      background: #262626;
+      border-radius: 4px;
+      padding: 8px;
+      margin: 6px 0;
+    }
+
+    .member {
+      font-size: 12px;
+      line-height: 16px;
+    }
+
+    .member.muted {
+      opacity: .6;
+    }
+
+    #status {
+      padding: 8px 12px;
+      border-radius: 4px;
+      background: #2f2f2f;
+      font-size: 14px;
+    }
+
+    .log {
+      font-family: monospace;
+      font-size: 11px;
+      background: #111;
+      border: 1px solid #222;
+      padding: 8px;
+      height: 220px;
+      overflow-y: auto;
+    }
+
+    .log-entry {
+      padding: 2px 0;
+      border-bottom: 1px solid #1f1f1f;
+    }
+
+    .error {
+      color: #ff5252;
+    }
+
+    .success {
+      color: #4CAF50;
+    }
+
+    .info {
+      color: #64b5f6;
+    }
+
+    .meter {
+      position: relative;
+      width: 160px;
+      height: 10px;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .meter .fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #2ecc71, #f1c40f, #e67e22, #e74c3c);
+    }
+
+    #vad-indicator {
+      transition: .15s background, color;
+    }
+
+    .member.speaking {
+      background: #203820;
+      border-left: 3px solid #2ecc71;
+    }
   </style>
 </head>
+
 <body>
   <h1>🎙️ MMO Voice / Audio 功能测试</h1>
   <div id="status">Disconnected</div>
@@ -35,18 +144,31 @@
   <div class="section">
     <h2>连接 (Colyseus)</h2>
     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-      <label>WS URL: <input id="ws-url" value="ws://192.168.1.46:2567" style="width:180px;background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;"/></label>
-      <label>房间: <input id="room-name" value="my_room" style="width:120px;background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;"/></label>
+      <label>WS URL: <input id="ws-url" value="ws://192.168.1.46:2567"
+          style="width:180px;background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;" /></label>
+      <label>房间: <input id="room-name" value="my_room"
+          style="width:120px;background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;" /></label>
+      <label>RTC Provider:
+        <select id="rtc-provider"
+          style="width:120px;background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;">
+          <option value="native">native</option>
+          <option value="agora">agora</option>
+        </select>
+      </label>
+      <label id="appIdWrap" style="display:none;">AppId: <input id="rtc-appid" placeholder="Agora AppId"
+          style="width:160px;background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;" /></label>
       <button id="connect-btn" onclick="connect()">Connect</button>
       <button id="disconnect-btn" onclick="disconnect()" disabled>Disconnect</button>
     </div>
+    <div style="margin-top:6px;font-size:11px;color:#888;" id="provider-status">Provider: native (P2P)</div>
   </div>
 
   <div class="section">
     <h2>频道操作</h2>
     <div style="display:flex;flex-wrap:wrap;gap:8px;">
       <button onclick="joinGlobal()">加入 Global</button>
-      <input id="new-channel-name" placeholder="新频道名称" style="background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;width:160px;"/>
+      <input id="new-channel-name" placeholder="新频道名称"
+        style="background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;width:160px;" />
       <button onclick="createTeam()">创建频道</button>
       <button onclick="leaveVoice()">离开频道</button>
     </div>
@@ -55,8 +177,10 @@
   <div class="section">
     <h2>本地音频控制</h2>
     <div style="display:flex;flex-wrap:wrap;gap:8px;">
-      <label>输入设备: <select id="input-device" style="background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;min-width:180px;"></select></label>
-      <label>输出设备: <select id="output-device" style="background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;min-width:180px;"></select></label>
+      <label>输入设备: <select id="input-device"
+          style="background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;min-width:180px;"></select></label>
+      <label>输出设备: <select id="output-device"
+          style="background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;min-width:180px;"></select></label>
       <button onclick="refreshDevices()">刷新设备</button>
       <button onclick="applyInputDevice()">应用输入</button>
       <button onclick="toggleMute()">静音</button>
@@ -68,13 +192,18 @@
     <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">
       <div style="display:flex;align-items:center;gap:6px;">
         <span style="font-size:12px;color:#aaa;">输入电平</span>
-        <div class="meter"><div class="fill" id="input-fill"></div></div>
+        <div class="meter">
+          <div class="fill" id="input-fill"></div>
+        </div>
         <span id="input-level-text" style="font-size:11px;width:42px;">0%</span>
-        <span id="vad-indicator" style="font-size:11px;padding:2px 8px;background:#333;border-radius:3px;">VAD: 静音</span>
+        <span id="vad-indicator" style="font-size:11px;padding:2px 8px;background:#333;border-radius:3px;">VAD:
+          静音</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <span style="font-size:12px;color:#aaa;">远端混合电平</span>
-        <div class="meter"><div class="fill" id="remote-fill"></div></div>
+        <div class="meter">
+          <div class="fill" id="remote-fill"></div>
+        </div>
         <span id="remote-level-text" style="font-size:11px;width:42px;">0%</span>
       </div>
     </div>
@@ -98,6 +227,87 @@
 
   <script src="https://unpkg.com/colyseus.js@^0.16.0/dist/colyseus.js"></script>
   <script>
+    // Inject defaults from build-time defines (vite.config.js)
+    document.getElementById('ws-url').value = window.__COLYSEUS_WS_URL__ || document.getElementById('ws-url').value;
+    document.getElementById('room-name').value = window.__COLYSEUS_ROOM__ || document.getElementById('room-name').value;
+    const providerSelect = document.getElementById('rtc-provider');
+    const desiredProvider = window.__RTC_PROVIDER__ || 'native';
+    if (providerSelect) providerSelect.value = desiredProvider;
+    if (desiredProvider === 'agora') {
+      document.getElementById('rtc-appid').value = window.__RTC_APP_ID__ || '';
+    }
+  </script>
+  <script>
+    // ---------- Provider Abstraction (Test Page) ----------
+    // Simple runtime-selectable providers: native (existing P2P) and agora (CDN stub)
+    let activeProvider = null; // { name, joinChannel(), leaveChannel(), setMute(), setDeafen(), getLocalAudioLevel(), getRemoteAudioLevels() }
+    let providerLoopRAF = null;
+    function setupProvider() {
+      const sel = document.getElementById('rtc-provider').value;
+      document.getElementById('provider-status').textContent = 'Provider: ' + sel + (sel === 'native' ? ' (P2P)' : ' (Cloud)');
+      if (sel === 'agora') {
+        activeProvider = createAgoraProvider();
+        document.getElementById('appIdWrap').style.display = 'inline-block';
+      } else {
+        activeProvider = createNativeProvider();
+        document.getElementById('appIdWrap').style.display = 'none';
+      }
+    }
+    document.getElementById('rtc-provider').addEventListener('change', () => { if (room) { log('切换 Provider 需要先断开连接', 'error'); } setupProvider(); });
+    setupProvider();
+
+    function startProviderLevelLoop() {
+      if (providerLoopRAF) return; const loop = () => {
+        if (activeProvider) {
+          try {
+            const lvl = activeProvider.getLocalAudioLevel?.(); if (typeof lvl === 'number') setMeter('input', lvl); const remoteLevels = activeProvider.getRemoteAudioLevels?.(); if (remoteLevels instanceof Map) { // 混合远端平均
+              let sum = 0; let count = 0; remoteLevels.forEach(v => { sum += v; count++; }); if (count > 0) { setMeter('remote', Math.min(1, sum / count)); }
+            }
+          } catch (_) { }
+          providerLoopRAF = requestAnimationFrame(loop);
+        }; loop();
+      }
+    }
+    function stopProviderLevelLoop() { if (providerLoopRAF) cancelAnimationFrame(providerLoopRAF); providerLoopRAF = null; }
+
+    // Native provider wraps existing P2P logic
+    function createNativeProvider() {
+      return {
+        name: 'native',
+        joinChannel: async (channelId) => { joinGlobal(); }, // existing functions handle
+        leaveChannel: async () => { leaveVoice(); },
+        setMute: (m) => { if (isMuted !== m) { toggleMute(); } },
+        setDeafen: (d) => { if (isDeafened !== d) { toggleDeafen(); } },
+        getLocalAudioLevel: () => { // use analyserInput RMS if available
+          if (!analyserInput || !inputData) return 0; let sum = 0; for (let i = 0; i < inputData.length; i++) { const v = (inputData[i] - 128) / 128; sum += v * v; } return Math.min(1, Math.sqrt(sum / inputData.length) * 4);
+        },
+        getRemoteAudioLevels: () => {
+          const map = new Map(); remoteAnalysers.forEach((obj, id) => { // compute latest level
+            let s = 0; for (let i = 0; i < obj.data.length; i++) { const v = (obj.data[i] - 128) / 128; s += v * v; } map.set(id, Math.min(1, Math.sqrt(s / obj.data.length) * 4));
+          }); return map;
+        }
+      };
+    }
+
+    // Agora provider stub (cloud) using CDN script
+    function createAgoraProvider() {
+      let agoraClient = null; let localTrack = null; let joined = false; let remoteLevels = new Map(); let localLevel = 0; let audioCtx = null; let analyserLocal = null; let dataLocal = null; const remoteStreams = new Map();
+      async function ensureSDK() { if (window.AgoraRTC) return window.AgoraRTC; await injectScript('https://download.agora.io/sdk/release/AgoraRTC_N.js'); return window.AgoraRTC; }
+      async function initLocal() { const RTC = await ensureSDK(); agoraClient = RTC.createClient({ mode: 'rtc', codec: 'vp8' }); agoraClient.on('user-published', async (user, mediaType) => { await agoraClient.subscribe(user, mediaType); if (mediaType === 'audio') { user.audioTrack.play(); const track = user.audioTrack.getMediaStreamTrack?.(); if (track) { const ms = new MediaStream([track]); remoteStreams.set(user.uid.toString(), ms); setupRemoteAnalyser(user.uid.toString(), ms); updateChannelDisplay(); log('Agora remote audio ' + user.uid, 'success'); } } }); localTrack = await RTC.createMicrophoneAudioTrack(); setupLocalAnalyser(localTrack.getMediaStreamTrack?.()); }
+      function setupLocalAnalyser(track) { if (!track) return; audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); const src = audioCtx.createMediaStreamSource(new MediaStream([track])); analyserLocal = audioCtx.createAnalyser(); analyserLocal.fftSize = 512; src.connect(analyserLocal); dataLocal = new Uint8Array(analyserLocal.frequencyBinCount); const loop = () => { if (analyserLocal && dataLocal) { analyserLocal.getByteTimeDomainData(dataLocal); let sum = 0; for (let i = 0; i < dataLocal.length; i++) { const v = (dataLocal[i] - 128) / 128; sum += v * v; } localLevel = Math.min(1, Math.sqrt(sum / dataLocal.length) * 4); } requestAnimationFrame(loop); }; loop(); }
+      function setupRemoteAnalyser(id, stream) { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); const src = audioCtx.createMediaStreamSource(stream); const an = audioCtx.createAnalyser(); an.fftSize = 512; src.connect(an); const data = new Uint8Array(an.frequencyBinCount); remoteLevels.set(id, 0); const loop = () => { an.getByteTimeDomainData(data); let s = 0; for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; s += v * v; } remoteLevels.set(id, Math.min(1, Math.sqrt(s / data.length) * 4)); requestAnimationFrame(loop); }; loop(); }
+      return {
+        name: 'agora',
+        joinChannel: async (channelId) => { try { if (!localTrack) await initLocal(); const appId = document.getElementById('rtc-appid').value.trim(); if (!appId) { log('缺少 AppId', 'error'); return; } const tokenResp = await fetch('/rtc/token?channel=' + encodeURIComponent(channelId) + '&userId=' + encodeURIComponent(room.sessionId)); const tokenJson = await tokenResp.json(); const token = tokenJson.token || null; await agoraClient.join(appId, channelId, token, room.sessionId); await agoraClient.publish([localTrack]); joined = true; log('Agora joined channel ' + channelId, 'success'); } catch (e) { log('Agora join error ' + e.message, 'error'); } },
+        leaveChannel: async () => { if (!joined) return; try { await agoraClient.leave(); joined = false; log('Agora left channel', 'info'); } catch (e) { log('Agora leave error ' + e.message, 'error'); } },
+        setMute: (m) => { try { localTrack?.setEnabled?.(!m); } catch (_) { } },
+        setDeafen: (d) => { /* Could stop playback of remote; simplified skip */ },
+        getLocalAudioLevel: () => localLevel,
+        getRemoteAudioLevels: () => remoteLevels
+      };
+    }
+    async function injectScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.async = true; s.onload = () => res(); s.onerror = e => rej(e); document.head.appendChild(s); }); }
+
     let room = null;
     let localStream = null;
     const peerConnections = new Map();
@@ -113,18 +323,18 @@
     const VAD_THRESHOLD = 0.05;
     let statsInterval = null;
     let loopbackAudio = null;
-  // Per-peer audio activity tracking
-  const remoteAnalysers = new Map(); // peerId -> { analyser, data, lastActive, speaking }
-  const speakingPeers = new Set(); // sessionIds currently speaking (local + remote)
+    // Per-peer audio activity tracking
+    const remoteAnalysers = new Map(); // peerId -> { analyser, data, lastActive, speaking }
+    const speakingPeers = new Set(); // sessionIds currently speaking (local + remote)
 
-    const rtcConfig = { iceServers: [ { urls:'stun:stun.l.google.com:19302' }, { urls:'stun:stun1.l.google.com:19302' } ] };
+    const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
 
-    function log(message, type='info') {
+    function log(message, type = 'info') {
       const logDiv = document.getElementById('log');
       const entry = document.createElement('div');
       entry.className = `log-entry ${type}`;
       entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-      logDiv.appendChild(entry); logDiv.scrollTop = logDiv.scrollHeight; console[type==='error'?'error':'log'](message);
+      logDiv.appendChild(entry); logDiv.scrollTop = logDiv.scrollHeight; console[type === 'error' ? 'error' : 'log'](message);
     }
 
     async function connect() {
@@ -133,88 +343,93 @@
         const roomName = document.getElementById('room-name').value.trim();
         log(`Connecting ${wsUrl} room=${roomName} ...`);
         const client = new Colyseus.Client(wsUrl);
-        room = await client.joinOrCreate(roomName, { name: 'VoiceUser_'+Math.floor(Math.random()*1000) });
-        document.getElementById('status').textContent = 'Connected: '+room.id;
+        room = await client.joinOrCreate(roomName, { name: 'VoiceUser_' + Math.floor(Math.random() * 1000) });
+        document.getElementById('status').textContent = 'Connected: ' + room.id;
         document.getElementById('status').style.background = '#1b5e20';
         document.getElementById('connect-btn').disabled = true;
         document.getElementById('disconnect-btn').disabled = false;
-  // Some environments may briefly have an undefined room.id; guard for that.
-  log('Room joined '+(room.id || '(no-id-yet)'),'success');
+        // Some environments may briefly have an undefined room.id; guard for that.
+        log('Room joined ' + (room.id || '(no-id-yet)'), 'success');
         setupVoiceListeners();
+        // Provider initialized after connection for access to sessionId.
+        setupProvider();
         await initDevicesAndStream();
+        startProviderLevelLoop();
         startStatsLoop();
       } catch (err) {
-        log('Connection error: '+ err.message,'error');
+        log('Connection error: ' + err.message, 'error');
       }
     }
 
     function disconnect() {
       if (!room) return;
       log('Disconnecting...');
-      peerConnections.forEach((_, id)=>closePeerConnection(id)); peerConnections.clear();
-      if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream=null; }
-      try { room.leave(); } catch(_){}
+      peerConnections.forEach((_, id) => closePeerConnection(id)); peerConnections.clear();
+      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+      try { room.leave(); } catch (_) { }
       room = null;
-      if (statsInterval) { clearInterval(statsInterval); statsInterval=null; }
+      if (statsInterval) { clearInterval(statsInterval); statsInterval = null; }
       stopMeters();
-      document.getElementById('status').textContent='Disconnected';
-      document.getElementById('status').style.background='#512222';
-      document.getElementById('connect-btn').disabled=false;
-      document.getElementById('disconnect-btn').disabled=true;
-      document.getElementById('channels').innerHTML='No channels';
-      document.getElementById('myStatus').textContent='Not in voice';
-      document.getElementById('rtc-stats').textContent='Stats: -';
-      log('Disconnected','info');
+      stopProviderLevelLoop();
+      if (activeProvider && activeProvider.name === 'agora') { try { activeProvider.leaveChannel?.(); } catch (_) { } }
+      document.getElementById('status').textContent = 'Disconnected';
+      document.getElementById('status').style.background = '#512222';
+      document.getElementById('connect-btn').disabled = false;
+      document.getElementById('disconnect-btn').disabled = true;
+      document.getElementById('channels').innerHTML = 'No channels';
+      document.getElementById('myStatus').textContent = 'Not in voice';
+      document.getElementById('rtc-stats').textContent = 'Stats: -';
+      log('Disconnected', 'info');
     }
 
     async function initDevicesAndStream() {
       await refreshDevices();
       const deviceId = document.getElementById('input-device').value;
       try {
-        log('Request mic device='+deviceId);
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: deviceId?{ exact: deviceId }:undefined, echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
-        log('Microphone access granted','success');
+        log('Request mic device=' + deviceId);
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: deviceId ? { exact: deviceId } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+        log('Microphone access granted', 'success');
         setupAudioContext();
-      } catch (e) { log('Microphone error: '+e.message,'error'); alert('麦克风访问失败: '+e.message); }
+      } catch (e) { log('Microphone error: ' + e.message, 'error'); alert('麦克风访问失败: ' + e.message); }
     }
 
     async function applyInputDevice() {
       // 如果还没连接或没有设备选项，直接返回
       const deviceId = document.getElementById('input-device').value;
-      if (!deviceId) { log('No input device selected','error'); return; }
+      if (!deviceId) { log('No input device selected', 'error'); return; }
       if (mediaRecorder) stopRecord();
       // 不停止整个 AudioContext，只替换输入流
       if (localStream) {
-        localStream.getTracks().forEach(t=>t.stop());
+        localStream.getTracks().forEach(t => t.stop());
       }
       localStream = null;
       analyserInput = null; inputData = null;
       // 保持远端分析器不变；只重建本地输入分析器
       try {
-        log('Re-applying mic device='+deviceId);
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId }, echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+        log('Re-applying mic device=' + deviceId);
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
         // 若已有 audioContext 直接复用，否则创建
         if (!audioContext) {
           audioContext = new (window.AudioContext || window.webkitAudioContext)();
         } else if (audioContext.state === 'suspended') {
           // 某些浏览器在多次调用后会挂起
-          try { await audioContext.resume(); } catch(_) {}
+          try { await audioContext.resume(); } catch (_) { }
         }
         const source = audioContext.createMediaStreamSource(localStream);
-        analyserInput = audioContext.createAnalyser(); analyserInput.fftSize=512; source.connect(analyserInput); inputData = new Uint8Array(analyserInput.frequencyBinCount);
+        analyserInput = audioContext.createAnalyser(); analyserInput.fftSize = 512; source.connect(analyserInput); inputData = new Uint8Array(analyserInput.frequencyBinCount);
         // 重启本地电平动画（如果之前已在运行，这里不会重复启动）
         if (!meterRAF) startMeters();
         // 更新所有现有 peer 的发送 track (不强制重建连接，降低负载)
-        peerConnections.forEach((pc, peerId)=>{
+        peerConnections.forEach((pc, peerId) => {
           // 移除旧的发送轨道; 简化处理：关闭旧 sender，重新 addTrack
           const senders = pc.getSenders();
-          senders.forEach(s=>{ if(s.track && s.track.kind==='audio') { try { pc.removeTrack(s); } catch(_){} } });
-          localStream.getTracks().forEach(t=> pc.addTrack(t, localStream));
-          log('Updated track for peer '+peerId);
+          senders.forEach(s => { if (s.track && s.track.kind === 'audio') { try { pc.removeTrack(s); } catch (_) { } } });
+          localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+          log('Updated track for peer ' + peerId);
         });
-        log('Mic reapplied successfully','success');
+        log('Mic reapplied successfully', 'success');
       } catch (e) {
-        log('Reapply mic error: '+e.message,'error');
+        log('Reapply mic error: ' + e.message, 'error');
       }
       updateMyStatus();
     }
@@ -224,62 +439,62 @@
         const devices = await navigator.mediaDevices.enumerateDevices();
         const inputSel = document.getElementById('input-device');
         const outputSel = document.getElementById('output-device');
-        inputSel.innerHTML=''; outputSel.innerHTML='';
+        inputSel.innerHTML = ''; outputSel.innerHTML = '';
         let sinkSupported = typeof HTMLMediaElement.prototype.setSinkId === 'function';
-        devices.forEach(d=>{ const opt=document.createElement('option'); opt.value=d.deviceId; opt.textContent=`[${d.kind}] ${d.label||d.deviceId}`; if(d.kind==='audioinput') inputSel.appendChild(opt); if(d.kind==='audiooutput') outputSel.appendChild(opt); });
-        document.getElementById('device-status').textContent = `输入设备:${inputSel.length} 输出设备:${outputSel.length}${sinkSupported?'':' (浏览器不支持输出切换)'}`;
-      } catch (e) { document.getElementById('device-status').textContent='设备枚举失败: '+e.message; }
+        devices.forEach(d => { const opt = document.createElement('option'); opt.value = d.deviceId; opt.textContent = `[${d.kind}] ${d.label || d.deviceId}`; if (d.kind === 'audioinput') inputSel.appendChild(opt); if (d.kind === 'audiooutput') outputSel.appendChild(opt); });
+        document.getElementById('device-status').textContent = `输入设备:${inputSel.length} 输出设备:${outputSel.length}${sinkSupported ? '' : ' (浏览器不支持输出切换)'}`;
+      } catch (e) { document.getElementById('device-status').textContent = '设备枚举失败: ' + e.message; }
     }
 
     function setupAudioContext() {
       if (audioContext) return;
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const source = audioContext.createMediaStreamSource(localStream);
-      analyserInput = audioContext.createAnalyser(); analyserInput.fftSize=512; source.connect(analyserInput); inputData = new Uint8Array(analyserInput.frequencyBinCount);
+      analyserInput = audioContext.createAnalyser(); analyserInput.fftSize = 512; source.connect(analyserInput); inputData = new Uint8Array(analyserInput.frequencyBinCount);
       startMeters();
     }
 
-    function startMeters() { if (meterRAF) return; const loop=()=>{ updateInputMeter(); updateRemoteMeter(); meterRAF=requestAnimationFrame(loop); }; loop(); }
-    function stopMeters(){ if(meterRAF) cancelAnimationFrame(meterRAF); meterRAF=null; }
-  function updateInputMeter(){ if(!analyserInput||!inputData) return; analyserInput.getByteTimeDomainData(inputData); let sum=0; for(let i=0;i<inputData.length;i++){const v=(inputData[i]-128)/128; sum+=v*v;} const rms=Math.sqrt(sum/inputData.length); const scaled=Math.min(1,rms*4); setMeter('input', scaled); if(scaled>VAD_THRESHOLD) vadLastActive=performance.now(); const speakingNow = performance.now()-vadLastActive<700; const wasSpeaking = speakingPeers.has(room?.sessionId); if(speakingNow && !wasSpeaking){ speakingPeers.add(room.sessionId); updateChannelDisplay(); } else if(!speakingNow && wasSpeaking){ speakingPeers.delete(room.sessionId); updateChannelDisplay(); } const vad=document.getElementById('vad-indicator'); if(speakingNow){ vad.textContent='VAD: 讲话中'; vad.style.background='#2e7d32'; } else { vad.textContent='VAD: 静音'; vad.style.background='#333'; } }
-  function updateRemoteMeter(){ if(!analyserRemote||!remoteData) return; analyserRemote.getByteTimeDomainData(remoteData); let sum=0; for(let i=0;i<remoteData.length;i++){const v=(remoteData[i]-128)/128; sum+=v*v;} const rms=Math.sqrt(sum/remoteData.length); setMeter('remote', Math.min(1,rms*4)); updateRemotePeerActivity(); }
-  function updateRemotePeerActivity(){ const now=performance.now(); remoteAnalysers.forEach((obj, peerId)=>{ obj.analyser.getByteTimeDomainData(obj.data); let sum=0; for(let i=0;i<obj.data.length;i++){ const v=(obj.data[i]-128)/128; sum+=v*v; } const rms=Math.sqrt(sum/obj.data.length); if(rms*4 > VAD_THRESHOLD) obj.lastActive=now; const speakingNow = (now - obj.lastActive) < 700; if(speakingNow && !obj.speaking){ obj.speaking=true; speakingPeers.add(peerId); updateChannelDisplay(); } else if(!speakingNow && obj.speaking){ obj.speaking=false; speakingPeers.delete(peerId); updateChannelDisplay(); } }); }
-    function setMeter(which, level){ const fill=document.getElementById(which+'-fill'); const txt=document.getElementById(which+'-level-text'); if(!fill||!txt)return; fill.style.width=(level*100).toFixed(1)+'%'; txt.textContent=Math.round(level*100)+'%'; fill.style.filter= level>0.75?'brightness(1.25)':level>0.4?'brightness(1.0)':'brightness(.7)'; }
+    function startMeters() { if (meterRAF) return; const loop = () => { updateInputMeter(); updateRemoteMeter(); meterRAF = requestAnimationFrame(loop); }; loop(); }
+    function stopMeters() { if (meterRAF) cancelAnimationFrame(meterRAF); meterRAF = null; }
+    function updateInputMeter() { if (!analyserInput || !inputData) return; analyserInput.getByteTimeDomainData(inputData); let sum = 0; for (let i = 0; i < inputData.length; i++) { const v = (inputData[i] - 128) / 128; sum += v * v; } const rms = Math.sqrt(sum / inputData.length); const scaled = Math.min(1, rms * 4); setMeter('input', scaled); if (scaled > VAD_THRESHOLD) vadLastActive = performance.now(); const speakingNow = performance.now() - vadLastActive < 700; const wasSpeaking = speakingPeers.has(room?.sessionId); if (speakingNow && !wasSpeaking) { speakingPeers.add(room.sessionId); updateChannelDisplay(); } else if (!speakingNow && wasSpeaking) { speakingPeers.delete(room.sessionId); updateChannelDisplay(); } const vad = document.getElementById('vad-indicator'); if (speakingNow) { vad.textContent = 'VAD: 讲话中'; vad.style.background = '#2e7d32'; } else { vad.textContent = 'VAD: 静音'; vad.style.background = '#333'; } }
+    function updateRemoteMeter() { if (!analyserRemote || !remoteData) return; analyserRemote.getByteTimeDomainData(remoteData); let sum = 0; for (let i = 0; i < remoteData.length; i++) { const v = (remoteData[i] - 128) / 128; sum += v * v; } const rms = Math.sqrt(sum / remoteData.length); setMeter('remote', Math.min(1, rms * 4)); updateRemotePeerActivity(); }
+    function updateRemotePeerActivity() { const now = performance.now(); remoteAnalysers.forEach((obj, peerId) => { obj.analyser.getByteTimeDomainData(obj.data); let sum = 0; for (let i = 0; i < obj.data.length; i++) { const v = (obj.data[i] - 128) / 128; sum += v * v; } const rms = Math.sqrt(sum / obj.data.length); if (rms * 4 > VAD_THRESHOLD) obj.lastActive = now; const speakingNow = (now - obj.lastActive) < 700; if (speakingNow && !obj.speaking) { obj.speaking = true; speakingPeers.add(peerId); updateChannelDisplay(); } else if (!speakingNow && obj.speaking) { obj.speaking = false; speakingPeers.delete(peerId); updateChannelDisplay(); } }); }
+    function setMeter(which, level) { const fill = document.getElementById(which + '-fill'); const txt = document.getElementById(which + '-level-text'); if (!fill || !txt) return; fill.style.width = (level * 100).toFixed(1) + '%'; txt.textContent = Math.round(level * 100) + '%'; fill.style.filter = level > 0.75 ? 'brightness(1.25)' : level > 0.4 ? 'brightness(1.0)' : 'brightness(.7)'; }
 
-  function attachRemoteTrack(stream){ if(!audioContext) setupAudioContext(); if(audioContext && !analyserRemote){ const rsrc=audioContext.createMediaStreamSource(stream); analyserRemote=audioContext.createAnalyser(); analyserRemote.fftSize=512; rsrc.connect(analyserRemote); remoteData=new Uint8Array(analyserRemote.frequencyBinCount); } }
-  function attachRemotePeerTrack(peerId, stream){ if(!audioContext) setupAudioContext(); const source = audioContext.createMediaStreamSource(stream); const analyser = audioContext.createAnalyser(); analyser.fftSize=512; source.connect(analyser); const data = new Uint8Array(analyser.frequencyBinCount); remoteAnalysers.set(peerId,{ analyser, data, lastActive:0, speaking:false }); }
+    function attachRemoteTrack(stream) { if (!audioContext) setupAudioContext(); if (audioContext && !analyserRemote) { const rsrc = audioContext.createMediaStreamSource(stream); analyserRemote = audioContext.createAnalyser(); analyserRemote.fftSize = 512; rsrc.connect(analyserRemote); remoteData = new Uint8Array(analyserRemote.frequencyBinCount); } }
+    function attachRemotePeerTrack(peerId, stream) { if (!audioContext) setupAudioContext(); const source = audioContext.createMediaStreamSource(stream); const analyser = audioContext.createAnalyser(); analyser.fftSize = 512; source.connect(analyser); const data = new Uint8Array(analyser.frequencyBinCount); remoteAnalysers.set(peerId, { analyser, data, lastActive: 0, speaking: false }); }
 
-    function toggleLoopback(){ if(!localStream){ log('No local stream','error'); return;} if(loopbackAudio){ loopbackAudio.srcObject=null; loopbackAudio.remove(); loopbackAudio=null; log('Loopback disabled'); } else { loopbackAudio=document.createElement('audio'); loopbackAudio.autoplay=true; loopbackAudio.muted=false; loopbackAudio.srcObject=localStream; document.body.appendChild(loopbackAudio); log('Loopback enabled','success'); } }
+    function toggleLoopback() { if (!localStream) { log('No local stream', 'error'); return; } if (loopbackAudio) { loopbackAudio.srcObject = null; loopbackAudio.remove(); loopbackAudio = null; log('Loopback disabled'); } else { loopbackAudio = document.createElement('audio'); loopbackAudio.autoplay = true; loopbackAudio.muted = false; loopbackAudio.srcObject = localStream; document.body.appendChild(loopbackAudio); log('Loopback enabled', 'success'); } }
 
-    function startRecord(){ if(!localStream){ log('Cannot record: no stream','error'); return;} if(mediaRecorder){ log('Already recording','info'); return;} mediaRecorder=new MediaRecorder(localStream,{mimeType:'audio/webm'}); recordingChunks=[]; mediaRecorder.ondataavailable=e=>{if(e.data.size>0) recordingChunks.push(e.data);}; mediaRecorder.onstop=()=>{ document.getElementById('download-btn').disabled= recordingChunks.length===0; }; mediaRecorder.start(); document.getElementById('record-btn').textContent='停止录音'; document.getElementById('record-btn').onclick=stopRecord; log('Recording started','success'); }
-    function stopRecord(){ if(!mediaRecorder) return; mediaRecorder.stop(); log('Recording stopped'); document.getElementById('record-btn').textContent='开始录音'; document.getElementById('record-btn').onclick=startRecord; mediaRecorder=null; }
-    function downloadRecord(){ if(!recordingChunks.length) return; const blob=new Blob(recordingChunks,{type:'audio/webm'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='voice_test_'+Date.now()+'.webm'; a.click(); URL.revokeObjectURL(url); }
+    function startRecord() { if (!localStream) { log('Cannot record: no stream', 'error'); return; } if (mediaRecorder) { log('Already recording', 'info'); return; } mediaRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm' }); recordingChunks = []; mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordingChunks.push(e.data); }; mediaRecorder.onstop = () => { document.getElementById('download-btn').disabled = recordingChunks.length === 0; }; mediaRecorder.start(); document.getElementById('record-btn').textContent = '停止录音'; document.getElementById('record-btn').onclick = stopRecord; log('Recording started', 'success'); }
+    function stopRecord() { if (!mediaRecorder) return; mediaRecorder.stop(); log('Recording stopped'); document.getElementById('record-btn').textContent = '开始录音'; document.getElementById('record-btn').onclick = startRecord; mediaRecorder = null; }
+    function downloadRecord() { if (!recordingChunks.length) return; const blob = new Blob(recordingChunks, { type: 'audio/webm' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'voice_test_' + Date.now() + '.webm'; a.click(); URL.revokeObjectURL(url); }
 
     function setupVoiceListeners() {
       const $$ = Colyseus.getStateCallbacks(room);
       // Channels added
-      $$(room.state).voiceChannels.onAdd((channel, channelId)=>{
-        log(`Channel added: ${channel.name}`,'success');
+      $$(room.state).voiceChannels.onAdd((channel, channelId) => {
+        log(`Channel added: ${channel.name}`, 'success');
         updateChannelDisplay();
         // Members add/remove
-        $$(channel).members.onAdd((member,sid)=>{
+        $$(channel).members.onAdd((member, sid) => {
           log(`Member joined ${channel.name}: ${member.playerName}`);
           updateChannelDisplay();
           const me = room.state.players.get(room.sessionId);
-          if (sid!==room.sessionId && me?.currentVoiceChannel === channelId) {
+          if (sid !== room.sessionId && me?.currentVoiceChannel === channelId) {
             setupPeerConnection(sid);
           }
         });
-        $$(channel).members.onRemove((member,sid)=>{
+        $$(channel).members.onRemove((member, sid) => {
           log(`Member left ${channel.name}: ${member.playerName}`);
           updateChannelDisplay();
           closePeerConnection(sid);
         });
       });
-      $$(room.state).voiceChannels.onRemove((channel)=>{ log(`Channel removed: ${channel.name}`); updateChannelDisplay(); });
+      $$(room.state).voiceChannels.onRemove((channel) => { log(`Channel removed: ${channel.name}`); updateChannelDisplay(); });
 
       // Players added
-      $$(room.state).players.onAdd((player,sid)=>{
+      $$(room.state).players.onAdd((player, sid) => {
         if (sid === room.sessionId) {
           // Listen to voice fields changes for status panel
           $$(player).listen('currentVoiceChannel', updateMyStatus);
@@ -288,13 +503,13 @@
         }
         updateMyStatus();
       });
-      $$(room.state).players.onRemove(()=> updateMyStatus());
+      $$(room.state).players.onRemove(() => updateMyStatus());
 
-      room.onMessage('voice:signal', (msg)=>{ log(`Signal ${msg.type} from ${msg.from}`); handleSignal(msg); });
+      room.onMessage('voice:signal', (msg) => { log(`Signal ${msg.type} from ${msg.from}`); handleSignal(msg); });
       updateChannelDisplay();
     }
 
-    function updateChannelDisplay(){
+    function updateChannelDisplay() {
       const div = document.getElementById('channels');
       if (!room || !room.state || !room.state.voiceChannels) { div.innerHTML = 'No channels'; return; }
       let html = '';
@@ -305,7 +520,7 @@
           const membersSchema = channel.members;
           let memberCount = 0;
           if (membersSchema && typeof membersSchema.forEach === 'function') {
-            membersSchema.forEach(()=> memberCount++);
+            membersSchema.forEach(() => memberCount++);
           } else if (membersSchema && membersSchema.size !== undefined) {
             memberCount = membersSchema.size;
           }
@@ -313,13 +528,13 @@
           if (membersSchema && typeof membersSchema.forEach === 'function') {
             membersSchema.forEach((m, mid) => {
               if (!m) return;
-            const muteIcon = m.muted ? '🔇' : '🎤';
-            const deafIcon = m.deafened ? '🙉' : '👂';
-            const isSpeaking = speakingPeers.has(m.sessionId) && !m.muted && !m.deafened;
-            const speakIcon = isSpeaking ? '🟢' : '';
-            const clsBase = (m.muted || m.deafened) ? 'member muted' : 'member';
-            const cls = isSpeaking ? clsBase + ' speaking' : clsBase;
-            html += `<div class=\"${cls}\">${speakIcon} ${muteIcon} ${deafIcon} ${m.playerName || mid}</div>`;
+              const muteIcon = m.muted ? '🔇' : '🎤';
+              const deafIcon = m.deafened ? '🙉' : '👂';
+              const isSpeaking = speakingPeers.has(m.sessionId) && !m.muted && !m.deafened;
+              const speakIcon = isSpeaking ? '🟢' : '';
+              const clsBase = (m.muted || m.deafened) ? 'member muted' : 'member';
+              const cls = isSpeaking ? clsBase + ' speaking' : clsBase;
+              html += `<div class=\"${cls}\">${speakIcon} ${muteIcon} ${deafIcon} ${m.playerName || mid}</div>`;
             });
           }
           html += '</div>';
@@ -330,27 +545,31 @@
       div.innerHTML = html || 'No channels';
     }
 
-    function updateMyStatus(){ if(!room) return; const me=room.state.players.get(room.sessionId); const status=document.getElementById('myStatus'); if(!me){ status.textContent='Not in voice'; return;} if(me.currentVoiceChannel){ const ch=room.state.voiceChannels.get(me.currentVoiceChannel); const cname= ch? ch.name: me.currentVoiceChannel; status.innerHTML=`<div>频道: <strong>${cname}</strong></div><div>${me.voiceMuted?'🔇 Muted':'🎤 Unmuted'} | ${me.voiceDeafened?'🙉 Deafened':'👂 Hearing'}</div><div>Peers: ${peerConnections.size}</div>`; } else { status.textContent='Not in voice'; } }
+    function updateMyStatus() { if (!room) return; const me = room.state.players.get(room.sessionId); const status = document.getElementById('myStatus'); if (!me) { status.textContent = 'Not in voice'; return; } if (me.currentVoiceChannel) { const ch = room.state.voiceChannels.get(me.currentVoiceChannel); const cname = ch ? ch.name : me.currentVoiceChannel; status.innerHTML = `<div>频道: <strong>${cname}</strong></div><div>${me.voiceMuted ? '🔇 Muted' : '🎤 Unmuted'} | ${me.voiceDeafened ? '🙉 Deafened' : '👂 Hearing'}</div><div>Peers: ${peerConnections.size}</div>`; } else { status.textContent = 'Not in voice'; } }
 
-  async function setupPeerConnection(peerId){ if(peerConnections.has(peerId)||!localStream) return; log('Create peer '+peerId); const pc=new RTCPeerConnection(rtcConfig); peerConnections.set(peerId, pc); localStream.getTracks().forEach(t=>pc.addTrack(t, localStream)); pc.ontrack=(ev)=>{ log('Remote track from '+peerId,'success'); const audio=document.createElement('audio'); audio.autoplay=true; audio.srcObject= ev.streams[0]; document.body.appendChild(audio); pc.remoteAudio=audio; attachRemoteTrack(ev.streams[0]); attachRemotePeerTrack(peerId, ev.streams[0]); }; pc.onicecandidate=(ev)=>{ if(ev.candidate) room.send('voice:signal',{ to:peerId, type:'ice-candidate', data:ev.candidate.toJSON() }); }; pc.onconnectionstatechange=()=>{ log('PC state '+peerId+': '+pc.connectionState); if(['failed','disconnected','closed'].includes(pc.connectionState)) closePeerConnection(peerId); }; const initiator = room.sessionId < peerId; if(initiator){ try { const offer= await pc.createOffer(); await pc.setLocalDescription(offer); room.send('voice:signal',{ to:peerId,type:'offer',data:offer }); log('Sent offer to '+peerId,'success'); } catch(e){ log('Offer error '+e.message,'error'); } } }
+    async function setupPeerConnection(peerId) { if (peerConnections.has(peerId) || !localStream) return; log('Create peer ' + peerId); const pc = new RTCPeerConnection(rtcConfig); peerConnections.set(peerId, pc); localStream.getTracks().forEach(t => pc.addTrack(t, localStream)); pc.ontrack = (ev) => { log('Remote track from ' + peerId, 'success'); const audio = document.createElement('audio'); audio.autoplay = true; audio.srcObject = ev.streams[0]; document.body.appendChild(audio); pc.remoteAudio = audio; attachRemoteTrack(ev.streams[0]); attachRemotePeerTrack(peerId, ev.streams[0]); }; pc.onicecandidate = (ev) => { if (ev.candidate) room.send('voice:signal', { to: peerId, type: 'ice-candidate', data: ev.candidate.toJSON() }); }; pc.onconnectionstatechange = () => { log('PC state ' + peerId + ': ' + pc.connectionState); if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) closePeerConnection(peerId); }; const initiator = room.sessionId < peerId; if (initiator) { try { const offer = await pc.createOffer(); await pc.setLocalDescription(offer); room.send('voice:signal', { to: peerId, type: 'offer', data: offer }); log('Sent offer to ' + peerId, 'success'); } catch (e) { log('Offer error ' + e.message, 'error'); } } }
 
-  async function handleSignal(msg){ const { from,type,data } = msg; let pc=peerConnections.get(from); const initiator = room.sessionId < from; if(type==='offer'){ if(initiator){ log('Glare: ignoring offer from '+from,'info'); return;} if(!pc){ pc=new RTCPeerConnection(rtcConfig); peerConnections.set(from, pc); if(localStream) localStream.getTracks().forEach(t=>pc.addTrack(t, localStream)); pc.ontrack=(ev)=>{ log('Remote track (offer path) from '+from,'success'); const audio=document.createElement('audio'); audio.autoplay=true; audio.srcObject=ev.streams[0]; document.body.appendChild(audio); pc.remoteAudio=audio; attachRemoteTrack(ev.streams[0]); attachRemotePeerTrack(from, ev.streams[0]); }; pc.onicecandidate=(ev)=>{ if(ev.candidate) room.send('voice:signal',{ to:from,type:'ice-candidate',data:ev.candidate.toJSON() }); }; }
-      try { await pc.setRemoteDescription(new RTCSessionDescription(data)); const answer= await pc.createAnswer(); await pc.setLocalDescription(answer); room.send('voice:signal',{ to:from,type:'answer',data:answer }); log('Sent answer to '+from,'success'); } catch(e){ log('Answer error '+e.message,'error'); }
-    } else if(type==='answer'){ try { await pc?.setRemoteDescription(new RTCSessionDescription(data)); log('Set remote answer from '+from,'success'); } catch(e){ log('Set answer error '+e.message,'error'); } } else if(type==='ice-candidate'){ try { await pc?.addIceCandidate(new RTCIceCandidate(data)); } catch(e){ log('ICE add error '+e.message,'error'); } } }
+    async function handleSignal(msg) {
+      const { from, type, data } = msg; let pc = peerConnections.get(from); const initiator = room.sessionId < from; if (type === 'offer') {
+        if (initiator) { log('Glare: ignoring offer from ' + from, 'info'); return; } if (!pc) { pc = new RTCPeerConnection(rtcConfig); peerConnections.set(from, pc); if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream)); pc.ontrack = (ev) => { log('Remote track (offer path) from ' + from, 'success'); const audio = document.createElement('audio'); audio.autoplay = true; audio.srcObject = ev.streams[0]; document.body.appendChild(audio); pc.remoteAudio = audio; attachRemoteTrack(ev.streams[0]); attachRemotePeerTrack(from, ev.streams[0]); }; pc.onicecandidate = (ev) => { if (ev.candidate) room.send('voice:signal', { to: from, type: 'ice-candidate', data: ev.candidate.toJSON() }); }; }
+        try { await pc.setRemoteDescription(new RTCSessionDescription(data)); const answer = await pc.createAnswer(); await pc.setLocalDescription(answer); room.send('voice:signal', { to: from, type: 'answer', data: answer }); log('Sent answer to ' + from, 'success'); } catch (e) { log('Answer error ' + e.message, 'error'); }
+      } else if (type === 'answer') { try { await pc?.setRemoteDescription(new RTCSessionDescription(data)); log('Set remote answer from ' + from, 'success'); } catch (e) { log('Set answer error ' + e.message, 'error'); } } else if (type === 'ice-candidate') { try { await pc?.addIceCandidate(new RTCIceCandidate(data)); } catch (e) { log('ICE add error ' + e.message, 'error'); } }
+    }
 
-  function closePeerConnection(peerId){ const pc=peerConnections.get(peerId); if(!pc) return; if(pc.remoteAudio){ pc.remoteAudio.srcObject=null; pc.remoteAudio.remove(); } pc.close(); peerConnections.delete(peerId); remoteAnalysers.delete(peerId); if(speakingPeers.delete(peerId)) updateChannelDisplay(); log('Closed peer '+peerId); updateMyStatus(); }
+    function closePeerConnection(peerId) { const pc = peerConnections.get(peerId); if (!pc) return; if (pc.remoteAudio) { pc.remoteAudio.srcObject = null; pc.remoteAudio.remove(); } pc.close(); peerConnections.delete(peerId); remoteAnalysers.delete(peerId); if (speakingPeers.delete(peerId)) updateChannelDisplay(); log('Closed peer ' + peerId); updateMyStatus(); }
 
-    function joinGlobal(){ if(room){ room.send('voice:join',{ channelId:'global' }); log('Join global'); } }
-    function createTeam(){ if(!room) return; const name = document.getElementById('new-channel-name').value.trim() || 'Team_'+Math.floor(Math.random()*1000); room.send('voice:create',{ name, type:'group', maxMembers:12 }); log('Create channel '+name); }
-    function leaveVoice(){ if(!room) return; peerConnections.forEach((_,id)=>closePeerConnection(id)); peerConnections.clear(); room.send('voice:leave'); log('Left channel'); }
-    function toggleMute(){ isMuted=!isMuted; if(localStream) localStream.getAudioTracks().forEach(t=>t.enabled=!isMuted); if(room) room.send('voice:mute',{ muted:isMuted }); log('Muted='+isMuted); updateMyStatus(); }
-    function toggleDeafen(){ isDeafened=!isDeafened; peerConnections.forEach(pc=>{ if(pc.remoteAudio) pc.remoteAudio.muted=isDeafened; }); if(room) room.send('voice:deafen',{ deafened:isDeafened }); log('Deafened='+isDeafened); updateMyStatus(); }
+    function joinGlobal() { if (room) { room.send('voice:join', { channelId: 'global' }); log('Join global'); } }
+    function createTeam() { if (!room) return; const name = document.getElementById('new-channel-name').value.trim() || 'Team_' + Math.floor(Math.random() * 1000); room.send('voice:create', { name, type: 'group', maxMembers: 12 }); log('Create channel ' + name); }
+    function leaveVoice() { if (!room) return; peerConnections.forEach((_, id) => closePeerConnection(id)); peerConnections.clear(); room.send('voice:leave'); if (activeProvider && activeProvider.name === 'agora') { activeProvider.leaveChannel?.(); } log('Left channel'); }
+    function toggleMute() { isMuted = !isMuted; if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted); if (activeProvider && activeProvider.name === 'agora') { activeProvider.setMute?.(isMuted); } if (room) room.send('voice:mute', { muted: isMuted }); log('Muted=' + isMuted); updateMyStatus(); }
+    function toggleDeafen() { isDeafened = !isDeafened; peerConnections.forEach(pc => { if (pc.remoteAudio) pc.remoteAudio.muted = isDeafened; }); if (activeProvider && activeProvider.name === 'agora') { activeProvider.setDeafen?.(isDeafened); } if (room) room.send('voice:deafen', { deafened: isDeafened }); log('Deafened=' + isDeafened); updateMyStatus(); }
 
-    function startStatsLoop(){ if(statsInterval) return; statsInterval = setInterval(async ()=>{ try { let lines=[]; for(const [id, pc] of peerConnections){ const stats= await pc.getStats(); let audioIn=0, audioOut=0, rtt='-', packetsLost='-'; stats.forEach(r=>{ if(r.type==='inbound-rtp' && r.kind==='audio'){ audioIn=r.bytesReceived; packetsLost=r.packetsLost; rtt=r.roundTripTime||r.totalRoundTripTime||'-'; } if(r.type==='outbound-rtp' && r.kind==='audio'){ audioOut=r.bytesSent; } }); lines.push(`${id.substr(0,6)} in:${(audioIn/1024).toFixed(1)}KB out:${(audioOut/1024).toFixed(1)}KB rtt:${rtt} lost:${packetsLost}`); } document.getElementById('rtc-stats').textContent = 'Stats: '+(lines.length? lines.join(' | '):'-'); } catch(_){} }, 1500); }
+    function startStatsLoop() { if (statsInterval) return; statsInterval = setInterval(async () => { try { let lines = []; for (const [id, pc] of peerConnections) { const stats = await pc.getStats(); let audioIn = 0, audioOut = 0, rtt = '-', packetsLost = '-'; stats.forEach(r => { if (r.type === 'inbound-rtp' && r.kind === 'audio') { audioIn = r.bytesReceived; packetsLost = r.packetsLost; rtt = r.roundTripTime || r.totalRoundTripTime || '-'; } if (r.type === 'outbound-rtp' && r.kind === 'audio') { audioOut = r.bytesSent; } }); lines.push(`${id.substr(0, 6)} in:${(audioIn / 1024).toFixed(1)}KB out:${(audioOut / 1024).toFixed(1)}KB rtt:${rtt} lost:${packetsLost}`); } document.getElementById('rtc-stats').textContent = 'Stats: ' + (lines.length ? lines.join(' | ') : '-'); } catch (_) { } }, 1500); }
 
     window.addEventListener('beforeunload', disconnect);
-    window.downloadRecord=downloadRecord; window.startRecord=startRecord; window.stopRecord=stopRecord; window.toggleLoopback=toggleLoopback; window.refreshDevices=refreshDevices; window.applyInputDevice=applyInputDevice;
+    window.downloadRecord = downloadRecord; window.startRecord = startRecord; window.stopRecord = stopRecord; window.toggleLoopback = toggleLoopback; window.refreshDevices = refreshDevices; window.applyInputDevice = applyInputDevice;
     refreshDevices();
   </script>
 </body>
+
 </html>

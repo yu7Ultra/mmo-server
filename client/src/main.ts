@@ -17,7 +17,21 @@ import { updateLeaderboard } from './game/leaderboard';
 import { createUI, setLoading, setupUIHandlers, updatePlayerUI, updateSkillsUI, updateHotbar } from './game/ui';
 import { initVoiceChat } from './game/voice/voiceManager';
 
-const client = new Client("ws://192.168.1.46:2567");
+// Centralized client configuration via Vite env variables.
+// These are defined in .env files (prefixed with VITE_) and exposed through import.meta.env.
+// Fallbacks ensure reasonable defaults for development if variables are missing.
+const COLYSEUS_WS_URL = import.meta.env.VITE_COLYSEUS_WS_URL || 'ws://localhost:2567';
+const DEFAULT_ROOM = import.meta.env.VITE_COLYSEUS_ROOM || 'my_room';
+const PLAYER_NAME_PREFIX = import.meta.env.VITE_PLAYER_NAME_PREFIX || 'Player';
+// TMX map asset path can be overridden (empty string disables TMX load attempt)
+const ASSET_TMX = import.meta.env.VITE_ASSET_TMX || 'assets/oga/kenney_monochrome-pirates/Tiled/sample-overworld.tmx';
+// World repeat factors for tiling large composite world (string env -> number)
+const WORLD_REPEAT_X = Number(import.meta.env.VITE_WORLD_REPEAT_X || 6);
+const WORLD_REPEAT_Y = Number(import.meta.env.VITE_WORLD_REPEAT_Y || 6);
+// Interval for updating cooldown & hotbar UI (ms)
+const COOLDOWN_UI_INTERVAL_MS = Number(import.meta.env.VITE_COOLDOWN_UI_INTERVAL_MS || 100);
+
+const client = new Client(COLYSEUS_WS_URL);
 
 // Player & UI setup bootstrap (logic split across ./game modules)
 
@@ -98,13 +112,17 @@ async function main() {
     setLoading(false);
 
     try {
-        const room = await client.joinOrCreate<MyRoomState>("my_room", { name: "Player" + Math.floor(Math.random() * 1000) });
+    const room = await client.joinOrCreate<MyRoomState>(DEFAULT_ROOM, { name: `${PLAYER_NAME_PREFIX}${Math.floor(Math.random() * 1000)}` });
         // Attempt TMX map load (Kenney sample overworld)
         let mapData: TMXMap | null = null;
         const loadedAssets = getLoadedAssets();
         try {
-            mapData = await loadTMX('assets/oga/kenney_monochrome-pirates/Tiled/sample-overworld.tmx');
-            console.log('[map] TMX loaded', mapData.width, 'x', mapData.height, 'tiles');
+            if (ASSET_TMX) {
+                mapData = await loadTMX(ASSET_TMX);
+                if (mapData) {
+                    console.log('[map] TMX loaded', mapData.width, 'x', mapData.height, 'tiles');
+                }
+            }
         } catch (e) {
             console.warn('[map] TMX load failed, using procedural ground fallback', e);
         }
@@ -113,8 +131,8 @@ async function main() {
             const derivedW = mapData.width * mapData.tilewidth;
             const derivedH = mapData.height * mapData.tileheight;
             // Composite: repeat the small sample map NxM times to create a larger world quickly.
-            const repeatX = 6;
-            const repeatY = 6;
+            const repeatX = WORLD_REPEAT_X;
+            const repeatY = WORLD_REPEAT_Y;
             for (let ry = 0; ry < repeatY; ry++) {
                 for (let rx = 0; rx < repeatX; rx++) {
                     mapData.layers.forEach((layer, layerIndex) => {
@@ -295,7 +313,7 @@ async function main() {
                 updateSkillsUI(myPlayer); // still fills side panel list
                 updateHotbar(myPlayer);
             }
-        }, 100); // Update every 100ms for smooth cooldown display
+        }, COOLDOWN_UI_INTERVAL_MS); // Env-configurable update interval
 
         // Space toggles camera lock
         window.addEventListener('keydown', (e) => {

@@ -89,6 +89,16 @@ const config: ConfigOptions = {
             res.json({ files: listProfiles() });
         });
 
+        // RTC token endpoint (stub). In production validate auth & channel.
+        app.get('/rtc/token', async (req, res) => {
+            const channel = (req.query.channel as string) || 'global';
+            const userId = (req.query.userId as string) || 'anonymous';
+            // TODO: Integrate with actual provider token generation service.
+            // For now return dummy token incorporating user/channel for easier debugging.
+            const token = Buffer.from(`${userId}:${channel}:${Date.now()}`).toString('base64');
+            res.json({ token, channel });
+        });
+
         // Register the monitoring panel only in development
         if (process.env.NODE_ENV === 'development') {
             app.use('/colyseus', monitor());
