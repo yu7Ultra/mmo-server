@@ -1,6 +1,7 @@
 import { World } from 'miniplex';
 import { Entity } from '../entities';
 import { Quest } from '../schemas/MyRoomState';
+import * as prom from '../instrumentation/prometheusMetrics';
 
 /**
  * Quest system - manages quest progress and completion
@@ -76,6 +77,10 @@ function completeQuest(entity: Entity, quest: Quest): void {
   
   // Award experience
   entity.player.experience += quest.expReward;
+  
+  // Record quest completion in Prometheus
+  prom.recordQuestCompletion(quest.id);
+  prom.recordExperience('quest', quest.expReward);
   
   // Check for level up
   while (entity.player.experience >= entity.player.experienceToNext) {

@@ -9,6 +9,7 @@
 | 文档 | 描述 | 内容 |
 |------|------|------|
 | [FEATURES.md](./FEATURES.md) | 完整功能文档 | 战斗、技能、任务、成就、聊天、语音、安全 |
+| [ROADMAP.md](./ROADMAP.md) | MMO 成熟化路线图 | 游戏核心扩展、内容工具、运营体系、技术优化 |
 | [PERFORMANCE.md](./PERFORMANCE.md) | 性能优化指南 | 性能分析、指标、最佳实践 |
 | [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md) | 代码示例和片段 | 客户端集成、API 使用 |
 

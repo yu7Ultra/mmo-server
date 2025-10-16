@@ -1,5 +1,6 @@
 import { World } from 'miniplex';
 import { Entity } from '../entities';
+import * as prom from '../instrumentation/prometheusMetrics';
 
 /**
  * Combat system - handles PvE and PvP combat
@@ -48,6 +49,10 @@ export const combatSystem = (world: World<Entity>, deltaTime: number = 16.67) =>
     player.damageDealt += damage;
     combatTarget.player.damageTaken += damage;
     
+    // Record Prometheus metrics
+    prom.recordDamage('basic_attack', damage);
+    prom.recordCombat('pvp'); // Assuming all combat is PvP for now
+    
     // Update attack time
     entity.lastAttackTime = now;
     
@@ -82,9 +87,16 @@ function handleKill(attacker: Entity, victim: Entity): void {
   attacker.player.kills++;
   victim.player.deaths++;
   
+  // Record Prometheus metrics
+  prom.recordPlayerKill();
+  prom.recordPlayerDeath();
+  
   // Award experience (level-based)
   const expGain = Math.floor(victim.player.level * 50 * (1 + Math.random() * 0.2));
   grantExperience(attacker.player, expGain);
+  
+  // Record experience gain
+  prom.recordExperience('combat', expGain);
   
   // Respawn victim
   victim.player.health = victim.player.maxHealth;

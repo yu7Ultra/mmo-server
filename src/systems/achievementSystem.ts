@@ -1,6 +1,7 @@
 import { World } from 'miniplex';
 import { Entity } from '../entities';
 import { Achievement } from '../schemas/MyRoomState';
+import * as prom from '../instrumentation/prometheusMetrics';
 
 /**
  * Achievement system - tracks and unlocks achievements
@@ -72,6 +73,9 @@ function updateAchievementProgress(entity: Entity, achievement: Achievement): vo
 function unlockAchievement(achievement: Achievement): void {
   achievement.unlocked = true;
   achievement.unlockedAt = Date.now();
+  
+  // Record achievement unlock in Prometheus
+  prom.recordAchievementUnlock(achievement.id);
 }
 
 /**

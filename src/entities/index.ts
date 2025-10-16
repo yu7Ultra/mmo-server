@@ -1,4 +1,5 @@
 import { Player } from '../schemas/MyRoomState';
+import { MonsterState } from '../config/monsterConfig';
 
 export type Entity = {
   id?: number;
@@ -12,12 +13,30 @@ export type Entity = {
   combatTarget?: Entity;
   lastAttackTime?: number;
   
-  // AI components (for NPCs/enemies)
+  // AI components (for NPCs/enemies - legacy)
   ai?: {
     type: 'passive' | 'aggressive' | 'defensive';
     aggroRange: number;
     patrolPath?: { x: number; y: number }[];
     currentPathIndex?: number;
+  };
+  
+  // Monster component (new AI system)
+  monster?: {
+    type: string;
+    level: number;
+    health: number;
+    maxHealth: number;
+    mana: number;
+    maxMana: number;
+    state: MonsterState;
+    stateStartTime: number;
+    spawnPoint: { x: number; y: number };
+    targetId?: string;
+    lastAttackTime: number;
+    deathTime: number;
+    patrolTarget?: { x: number; y: number };
+    waypointIndex?: number;
   };
   
   // Buff/Debuff components

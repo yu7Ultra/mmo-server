@@ -1,6 +1,48 @@
 import { World } from 'miniplex';
 import { Entity } from '../entities';
 import { Skill } from '../schemas/MyRoomState';
+import { configManager } from '../config/configManager';
+import { SkillsConfig, SkillConfig, SkillEffect } from '../config/skillConfig';
+import * as prom from '../instrumentation/prometheusMetrics';
+
+/**
+ * Skill configuration cache
+ */
+let skillConfigs: Map<string, SkillConfig> = new Map();
+
+/**
+ * Initialize skill system with configuration
+ */
+export function initializeSkillSystem(): void {
+  try {
+    const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+    const config = configManager.loadConfig<SkillsConfig>('skills', 'config/skills.json', !isTest);
+    skillConfigs = new Map(Object.entries(config.skills));
+    console.log(`[SkillSystem] Loaded ${skillConfigs.size} skills from configuration`);
+  } catch (err) {
+    console.error('[SkillSystem] Failed to load skill configuration:', err);
+    // Fallback to hardcoded skills if config fails
+    console.warn('[SkillSystem] Using fallback hardcoded skills');
+  }
+}
+
+/**
+ * Listen for configuration updates
+ */
+configManager.on('config-updated', (data: { configName: string; newData: any }) => {
+  if (data.configName === 'skills') {
+    const config = data.newData as SkillsConfig;
+    skillConfigs = new Map(Object.entries(config.skills));
+    console.log(`[SkillSystem] Reloaded ${skillConfigs.size} skills from configuration`);
+  }
+});
+
+/**
+ * Get skill configuration
+ */
+export function getSkillConfig(skillId: string): SkillConfig | undefined {
+  return skillConfigs.get(skillId);
+}
 
 /**
  * Skill system - manages skill cooldowns and effects
@@ -53,6 +95,9 @@ export function useSkill(
   // Update last used time
   skill.lastUsed = now;
   
+  // Record skill usage in Prometheus
+  prom.recordSkillUse(skillId);
+  
   // Apply skill effect based on skill type
   applySkillEffect(caster, skill, target);
   
@@ -60,51 +105,86 @@ export function useSkill(
 }
 
 /**
- * Apply skill effects
+ * Apply skill effects based on configuration
  */
 function applySkillEffect(caster: Entity, skill: Skill, target?: Entity): void {
-  switch (skill.id) {
-    case 'fireball':
-      if (target && target.player) {
-        const damage = skill.damage + caster.player.attack * 0.5;
-        target.player.health = Math.max(0, target.player.health - damage);
+  const config = getSkillConfig(skill.id);
+  if (!config) {
+    console.warn(`[SkillSystem] No configuration found for skill: ${skill.id}`);
+    return;
+  }
+
+  // Apply each effect defined in configuration
+  for (const effect of config.effects) {
+    applyEffect(caster, effect, target, config);
+  }
+}
+
+/**
+ * Apply individual skill effect
+ */
+function applyEffect(caster: Entity, effect: SkillEffect, target: Entity | undefined, skillConfig: SkillConfig): void {
+  const effectTarget = getEffectTarget(caster, target, effect.target);
+  if (!effectTarget || !effectTarget.player) return;
+
+  switch (effect.type) {
+    case 'damage':
+      if (effectTarget !== caster) {
+        let damage = effect.value || 0;
+        
+        // Apply stat scaling if defined
+        if (effect.scaling) {
+          const statValue = (caster.player as any)[effect.scaling.stat] || 0;
+          damage += statValue * effect.scaling.multiplier;
+        }
+        
+        effectTarget.player.health = Math.max(0, effectTarget.player.health - damage);
         caster.player.damageDealt += damage;
-        target.player.damageTaken += damage;
+        effectTarget.player.damageTaken += damage;
+        
+        // Record damage in Prometheus
+        prom.recordDamage(skillConfig.id, damage);
       }
       break;
       
     case 'heal':
-      const healAmount = skill.damage; // reuse damage field for heal amount
-      caster.player.health = Math.min(
-        caster.player.maxHealth,
-        caster.player.health + healAmount
+      const healAmount = effect.value || 0;
+      effectTarget.player.health = Math.min(
+        effectTarget.player.maxHealth,
+        effectTarget.player.health + healAmount
       );
       break;
       
-    case 'shield':
-      // Add defensive buff
-      if (!caster.buffs) caster.buffs = [];
-      caster.buffs.push({
-        id: 'shield',
-        type: 'defense',
-        duration: 5000,
-        startTime: Date.now(),
-        value: 10
-      });
-      break;
+    case 'buff':
+      if (!effectTarget.buffs) effectTarget.buffs = [];
       
-    case 'dash':
-      // Increase speed temporarily
-      if (!caster.buffs) caster.buffs = [];
-      caster.buffs.push({
-        id: 'dash',
-        type: 'speed',
-        duration: 2000,
+      let buffValue = effect.value || 0;
+      
+      // Handle multiplier-based buffs (like speed boost)
+      if (effect.multiplier && effect.buffType) {
+        const baseValue = (effectTarget.player as any)[effect.buffType] || 0;
+        buffValue = baseValue * effect.multiplier;
+      }
+      
+      effectTarget.buffs.push({
+        id: skillConfig.id,
+        type: effect.buffType || 'generic',
+        duration: effect.duration || 5000,
         startTime: Date.now(),
-        value: caster.player.speed * 2
+        value: buffValue
       });
       break;
   }
+}
+
+/**
+ * Get the target entity for an effect
+ */
+function getEffectTarget(caster: Entity, target: Entity | undefined, targetType?: string): Entity | undefined {
+  if (targetType === 'self' || !targetType) {
+    return caster;
+  }
+  return target;
 }
 
 /**
@@ -127,49 +207,35 @@ export const buffSystem = (world: World<Entity>) => {
 };
 
 /**
- * Initialize default skills for a player
+ * Initialize default skills for a player from configuration
  */
 export function initializeDefaultSkills(player: any): void {
   player.skills.clear();
   
-  // Add basic attack skills
-  const fireball = new Skill();
-  fireball.id = 'fireball';
-  fireball.name = 'Fireball';
-  fireball.description = '发射火球攻击敌人';
-  fireball.level = 1;
-  fireball.cooldown = 3000; // 3 seconds
-  fireball.manaCost = 20;
-  fireball.damage = 30;
-  player.skills.push(fireball);
+  // Load skills from configuration
+  const defaultSkillIds = ['fireball', 'heal', 'shield', 'dash'];
   
-  const heal = new Skill();
-  heal.id = 'heal';
-  heal.name = 'Heal';
-  heal.description = '恢复生命值';
-  heal.level = 1;
-  heal.cooldown = 5000; // 5 seconds
-  heal.manaCost = 30;
-  heal.damage = 40; // heal amount
-  player.skills.push(heal);
+  for (const skillId of defaultSkillIds) {
+    const config = getSkillConfig(skillId);
+    if (!config) {
+      console.warn(`[SkillSystem] Skill configuration not found for: ${skillId}`);
+      continue;
+    }
+    
+    const skill = new Skill();
+    skill.id = config.id;
+    skill.name = config.name;
+    skill.description = config.descriptionZh || config.description;
+    skill.level = config.level;
+    skill.cooldown = config.cooldown;
+    skill.manaCost = config.manaCost;
+    
+    // Set damage for compatibility (can be removed in future)
+    const damageEffect = config.effects.find(e => e.type === 'damage' || e.type === 'heal');
+    skill.damage = damageEffect?.value || 0;
+    
+    player.skills.push(skill);
+  }
   
-  const shield = new Skill();
-  shield.id = 'shield';
-  shield.name = 'Shield';
-  shield.description = '获得护盾防御加成';
-  shield.level = 1;
-  shield.cooldown = 10000; // 10 seconds
-  shield.manaCost = 25;
-  shield.damage = 0;
-  player.skills.push(shield);
-  
-  const dash = new Skill();
-  dash.id = 'dash';
-  dash.name = 'Dash';
-  dash.description = '短暂提升移动速度';
-  dash.level = 1;
-  dash.cooldown = 4000; // 4 seconds
-  dash.manaCost = 15;
-  dash.damage = 0;
-  player.skills.push(dash);
+  console.log(`[SkillSystem] Initialized ${player.skills.length} skills for player`);
 }

@@ -1,0 +1,243 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-10-15T17:00:00Z",
+  "monsters": {
+    "goblin": {
+      "id": "goblin",
+      "name": "Goblin",
+      "nameZh": "哥布林",
+      "description": "A small aggressive creature",
+      "descriptionZh": "小型攻击性生物",
+      "type": "aggressive",
+      "level": 5,
+      "stats": {
+        "health": 100,
+        "maxHealth": 100,
+        "mana": 50,
+        "maxMana": 50,
+        "attack": 15,
+        "defense": 5,
+        "speed": 80,
+        "attackRange": 50,
+        "detectionRange": 200,
+        "chaseRange": 300
+      },
+      "ai": {
+        "behavior": "aggressive",
+        "idleTime": 3000,
+        "patrolSpeed": 0.5,
+        "chaseSpeed": 1.2,
+        "returnSpeed": 1.0,
+        "attackCooldown": 1500,
+        "fleeHealthPercent": 0.2
+      },
+      "patrol": {
+        "enabled": true,
+        "type": "random",
+        "radius": 100,
+        "waypoints": []
+      },
+      "skills": ["basic_attack"],
+      "loot": {
+        "experience": 50,
+        "dropTable": [
+          {
+            "itemId": "coin",
+            "chance": 0.8,
+            "minAmount": 1,
+            "maxAmount": 5
+          }
+        ]
+      },
+      "respawn": {
+        "enabled": true,
+        "time": 30000
+      }
+    },
+    "wolf": {
+      "id": "wolf",
+      "name": "Wolf",
+      "nameZh": "野狼",
+      "description": "A fast predator that hunts in packs",
+      "descriptionZh": "快速捕食者，成群狩猎",
+      "type": "aggressive",
+      "level": 8,
+      "stats": {
+        "health": 150,
+        "maxHealth": 150,
+        "mana": 30,
+        "maxMana": 30,
+        "attack": 20,
+        "defense": 8,
+        "speed": 120,
+        "attackRange": 60,
+        "detectionRange": 250,
+        "chaseRange": 400
+      },
+      "ai": {
+        "behavior": "aggressive",
+        "idleTime": 2000,
+        "patrolSpeed": 0.6,
+        "chaseSpeed": 1.5,
+        "returnSpeed": 1.2,
+        "attackCooldown": 1200,
+        "fleeHealthPercent": 0.15
+      },
+      "patrol": {
+        "enabled": true,
+        "type": "waypoint",
+        "radius": 0,
+        "waypoints": [
+          { "x": 0, "y": 0 },
+          { "x": 100, "y": 0 },
+          { "x": 100, "y": 100 },
+          { "x": 0, "y": 100 }
+        ]
+      },
+      "skills": ["bite", "howl"],
+      "loot": {
+        "experience": 80,
+        "dropTable": [
+          {
+            "itemId": "wolf_pelt",
+            "chance": 0.6,
+            "minAmount": 1,
+            "maxAmount": 1
+          },
+          {
+            "itemId": "coin",
+            "chance": 0.9,
+            "minAmount": 3,
+            "maxAmount": 10
+          }
+        ]
+      },
+      "respawn": {
+        "enabled": true,
+        "time": 45000
+      }
+    },
+    "skeleton": {
+      "id": "skeleton",
+      "name": "Skeleton",
+      "nameZh": "骷髅兵",
+      "description": "An undead warrior",
+      "descriptionZh": "不死战士",
+      "type": "aggressive",
+      "level": 10,
+      "stats": {
+        "health": 200,
+        "maxHealth": 200,
+        "mana": 40,
+        "maxMana": 40,
+        "attack": 25,
+        "defense": 12,
+        "speed": 70,
+        "attackRange": 55,
+        "detectionRange": 180,
+        "chaseRange": 250
+      },
+      "ai": {
+        "behavior": "aggressive",
+        "idleTime": 4000,
+        "patrolSpeed": 0.4,
+        "chaseSpeed": 1.0,
+        "returnSpeed": 0.8,
+        "attackCooldown": 1800,
+        "fleeHealthPercent": 0.0
+      },
+      "patrol": {
+        "enabled": true,
+        "type": "random",
+        "radius": 80,
+        "waypoints": []
+      },
+      "skills": ["slash", "bone_shield"],
+      "loot": {
+        "experience": 100,
+        "dropTable": [
+          {
+            "itemId": "bone",
+            "chance": 0.7,
+            "minAmount": 1,
+            "maxAmount": 3
+          },
+          {
+            "itemId": "rusty_sword",
+            "chance": 0.3,
+            "minAmount": 1,
+            "maxAmount": 1
+          },
+          {
+            "itemId": "coin",
+            "chance": 1.0,
+            "minAmount": 5,
+            "maxAmount": 15
+          }
+        ]
+      },
+      "respawn": {
+        "enabled": true,
+        "time": 60000
+      }
+    },
+    "slime": {
+      "id": "slime",
+      "name": "Slime",
+      "nameZh": "史莱姆",
+      "description": "A gelatinous creature, weak but numerous",
+      "descriptionZh": "凝胶生物，弱小但数量众多",
+      "type": "passive",
+      "level": 3,
+      "stats": {
+        "health": 60,
+        "maxHealth": 60,
+        "mana": 20,
+        "maxMana": 20,
+        "attack": 10,
+        "defense": 2,
+        "speed": 50,
+        "attackRange": 40,
+        "detectionRange": 100,
+        "chaseRange": 150
+      },
+      "ai": {
+        "behavior": "passive",
+        "idleTime": 5000,
+        "patrolSpeed": 0.3,
+        "chaseSpeed": 0.8,
+        "returnSpeed": 0.6,
+        "attackCooldown": 2000,
+        "fleeHealthPercent": 0.3
+      },
+      "patrol": {
+        "enabled": true,
+        "type": "random",
+        "radius": 50,
+        "waypoints": []
+      },
+      "skills": [],
+      "loot": {
+        "experience": 30,
+        "dropTable": [
+          {
+            "itemId": "slime_gel",
+            "chance": 0.9,
+            "minAmount": 1,
+            "maxAmount": 3
+          },
+          {
+            "itemId": "coin",
+            "chance": 0.5,
+            "minAmount": 1,
+            "maxAmount": 3
+          }
+        ]
+      },
+      "respawn": {
+        "enabled": true,
+        "time": 20000
+      }
+    }
+  }
+}

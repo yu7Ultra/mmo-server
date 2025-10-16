@@ -1,12 +1,17 @@
 import { World } from 'miniplex';
 import { Entity } from '../entities';
 import { Player, Skill } from '../schemas/MyRoomState';
-import { buffSystem, initializeDefaultSkills, skillSystem, useSkill } from '../systems/skillSystem';
+import { buffSystem, initializeDefaultSkills, initializeSkillSystem, skillSystem, useSkill } from '../systems/skillSystem';
 
 describe('Skill System', () => {
   let world: World<Entity>;
   let player: Player;
   let entity: Entity;
+
+  beforeAll(() => {
+    // Initialize skill system with configuration
+    initializeSkillSystem();
+  });
 
   beforeEach(() => {
     world = new World<Entity>();
@@ -122,5 +127,11 @@ describe('Skill System', () => {
     buffSystem(world);
     
     expect(entity.buffs.length).toBe(1);
+  });
+
+  afterAll(() => {
+    // Clean up config manager
+    const { configManager } = require('../config/configManager');
+    configManager.dispose();
   });
 });
