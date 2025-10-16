@@ -12,6 +12,7 @@ import { MyRoom } from './rooms/MyRoom';
 import { collectAllMetrics, toPrometheusText } from './instrumentation/metrics';
 import { register as prometheusRegister } from './instrumentation/prometheusMetrics';
 import { captureCPUProfile, listProfiles, captureHeapSnapshot } from './instrumentation/profiler';
+import { getAnalyticsCollector } from './analytics/analyticsCollector';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -100,6 +101,33 @@ const config: ConfigOptions = {
         app.get('/profile/list', (req, res) => {
             res.json({ files: listProfiles() });
         });
+        
+        // Analytics Dashboard endpoint
+        app.get('/analytics', (req, res) => {
+            const analytics = getAnalyticsCollector();
+            res.json({
+                userMetrics: analytics.getUserMetrics(),
+                retentionMetrics: analytics.getRetentionMetrics(),
+                levelDistribution: analytics.getLevelDistribution(),
+                combatStats: analytics.getCombatStats(),
+                economyMetrics: analytics.getEconomyMetrics(),
+                questMetrics: analytics.getQuestMetrics(),
+                skillMetrics: analytics.getSkillMetrics(),
+                churnMetrics: analytics.getChurnMetrics(),
+                averageSessionDuration: analytics.getAverageSessionDuration(),
+                timestamp: Date.now(),
+            });
+        });
+        
+        // Analytics event log
+        app.get('/analytics/events', (req, res) => {
+            const limit = Number(req.query.limit) || 100;
+            const analytics = getAnalyticsCollector();
+            res.json({
+                events: analytics.getEventLog(limit),
+                timestamp: Date.now(),
+            });
+        });
 
         // Register the monitoring panel only in development
         if (process.env.NODE_ENV === 'development') {
@@ -109,6 +137,7 @@ const config: ConfigOptions = {
             console.log(`Playground is available at http://localhost:${port}/playground`);
             console.log(`Metrics JSON available at http://localhost:${port}/metrics.json`);
             console.log(`Metrics Prometheus available at http://localhost:${port}/metrics`);
+            console.log(`Analytics Dashboard available at http://localhost:${port}/analytics`);
         }
     },
 
