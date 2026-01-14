@@ -23,6 +23,55 @@ export enum INPUT_KEY {
     T_KEY = 1 << 7, // 1000 0000
 }
 
+export class CommandMessage {
+    type: MessageType = MessageType.Unknown;
+    from: number = 0;
+}
+
+// 角色事件消息结构体
+export class RoleHuiXueStartMsg extends CommandMessage {
+    id: number = 0;
+}
+
+export class RoleDieMsg extends CommandMessage {
+    id: number = 0;
+}
+
+export class CancelLockEnemyMsg extends CommandMessage {
+    id: number = 0;
+}
+
+export class LockEnemyMsg extends CommandMessage {
+    id: number = 0;
+    enemyId: number = 0;
+    lockType: number = 0;
+}
+
+export class RoleAttackMsg extends CommandMessage {
+    id: number = 0;
+}
+
+export class RoleHurtMsg extends CommandMessage {
+    id: number = 0;
+    targetId: number = 0;
+    damage: number = 0;
+    artFontType: number = 0;
+}
+
+export class RoleAttackFireMsg extends CommandMessage {
+    id: number = 0;
+}
+
+export class RoleAttackMeleeMsg extends CommandMessage {
+    id: number = 0;
+}
+
+export class RoleReduceHpMsg extends CommandMessage {
+    id: number = 0;
+    targetId: number = 0;
+    damage: number = 0;
+    artFontType?: number;
+}
 
 export enum MessageType {
     Frame = 1,
@@ -36,9 +85,17 @@ export enum MessageType {
     ChildMove = 9,
     InputUpdate = 10,
 
+    // 角色事件
+    RoleHuiXueStart = 11,
+    RoleDie = 12,
+    CancelLockEnemy = 13,
+    LockEnemy = 14,
+    RoleAttack = 15,
+    RoleHurt = 16,
+    RoleAttackFire = 17,
+    RoleAttackMelee = 18,
+    RoleReduceHp = 19,
 
-    SpawnMonster = 11,
-    DespawnMonster = 12,
 
     Spawn = 250,
     Unspawn = 251,
@@ -50,10 +107,7 @@ export enum MessageType {
     UpdateChildState = 256,
 }
 
-export class CommandMessage {
-    type: MessageType = MessageType.Unknown;
-    from: number = 0;
-}
+
 
 export class ChildMoveCommandMessage extends CommandMessage {
     id: number = 0

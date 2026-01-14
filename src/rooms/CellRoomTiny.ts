@@ -4,7 +4,7 @@ import { randomInt } from 'crypto';
 import { World } from 'miniplex';
 import { configManager } from '../config/configManager';
 import { ENV } from '../config/env';
-import { ChildMoveCommandMessage, ChildUpdateCommandMessage, CommandMessage, CommandPendingMessage, FrameInfo, InputUpdateCommandMessage, MessageType, MoveCommandMessage, RoleType } from '../schemas/commands/CellRoomCommands';
+import { CancelLockEnemyMsg, ChildMoveCommandMessage, ChildUpdateCommandMessage, CommandMessage, CommandPendingMessage, FrameInfo, InputUpdateCommandMessage, LockEnemyMsg, MessageType, MoveCommandMessage, RoleAttackFireMsg, RoleAttackMeleeMsg, RoleAttackMsg, RoleDieMsg, RoleHuiXueStartMsg, RoleHurtMsg, RoleReduceHpMsg, RoleType } from '../schemas/commands/CellRoomCommands';
 import { Vec2 } from '../schemas/commands/Vec2';
 import { CellRoomUnit, initializeScheme, LeaderUnit, MonsterUnit } from '../schemas/sync/CellRoomSyncStates';
 import { loggerService } from '../services/loggerService';
@@ -131,7 +131,7 @@ export class CellRoomTiny extends Room<CellRoomUnit> {
         }, 1000 / (ENV.TICK_RATE || 10));
 
         // Helper to register simple command handlers to avoid repetition.
-        const registerCommandHandler = <T extends CommandMessage | CommandMessage[]>(msgType: MessageType, isArr?: boolean) => {
+        const registerCommandHandler = <T extends CommandMessage>(msgType: MessageType, isArr?: boolean) => {
             this.onMessage(msgType, (client: Client, message: T) => {
                 this.logger.debug("收到命令", {
                     messageType: MessageType[msgType],
@@ -168,13 +168,13 @@ export class CellRoomTiny extends Room<CellRoomUnit> {
                         messageType: MessageType[msgType],
                         currentLength: commandPending[msgType].length
                     });
-                    commandPending[msgType].push((message as any).payload);
+                    commandPending[msgType].push(message);
                 } else {
                     this.logger.debug("创建新的命令数组", {
                         sessionId: client.sessionId,
                         messageType: MessageType[msgType]
                     });
-                    commandPending[msgType] = [(message as any).payload];
+                    commandPending[msgType] = [message];
                 }
 
                 this.logger.debug("命令存储完成", {
@@ -205,10 +205,81 @@ export class CellRoomTiny extends Room<CellRoomUnit> {
         // Unknown handler (left for custom processing)
         this.onMessage(MessageType.Unknown, (client, message: CommandMessage) => {
             // this.currFrame.commands.push(message);
+
         });
 
+        this.onMessage(MessageType.RoleAttack, (client, message: RoleAttackMsg) => {
+            this.logger.debug("收到角色普通攻击", {
+                clientSessionId: client.sessionId,
+                payload: message
+            });
+            this.broadcast(MessageType.RoleAttack, message);
+        });
 
+        this.onMessage(MessageType.RoleHuiXueStart, (client, message: RoleHuiXueStartMsg) => {
+            //TODO 判断 client是否对 roleId 具备更改权限，如果不具备直接断开链接踢人
+            this.logger.debug("收到角色回血开始", {
+                clientSessionId: client.sessionId,
+                payload: message
+            });
+            this.broadcast(MessageType.RoleHuiXueStart, message);
+        });
 
+        this.onMessage(MessageType.RoleDie, (client, message: RoleDieMsg) => {
+            this.logger.debug("收到角色死亡", {
+                clientSessionId: client.sessionId,
+                payload: message
+            });
+            this.broadcast(MessageType.RoleDie, message);
+        });
+
+        this.onMessage(MessageType.CancelLockEnemy, (client, message: CancelLockEnemyMsg) => {
+            this.logger.debug("收到取消锁定敌人", {
+                clientSessionId: client.sessionId,
+                payload: message
+            });
+            this.broadcast(MessageType.CancelLockEnemy, message);
+        });
+
+        this.onMessage(MessageType.LockEnemy, (client, message: LockEnemyMsg) => {
+            this.logger.debug("收到锁定敌人", {
+                clientSessionId: client.sessionId,
+                payload: message
+            });
+            this.broadcast(MessageType.LockEnemy, message);
+        });
+
+        this.onMessage(MessageType.RoleHurt, (client, message: RoleHurtMsg) => {
+            this.logger.debug("收到角色受击", {
+                clientSessionId: client.sessionId,
+                payload: message
+            });
+            this.broadcast(MessageType.RoleHurt, message);
+        });
+
+        this.onMessage(MessageType.RoleAttackFire, (client, message: RoleAttackFireMsg) => {
+            this.logger.debug("收到角色远程攻击", {
+                clientSessionId: client.sessionId,
+                payload: message
+            });
+            this.broadcast(MessageType.RoleAttackFire, message);
+        });
+
+        this.onMessage(MessageType.RoleAttackMelee, (client, message: RoleAttackMeleeMsg) => {
+            this.logger.debug("收到角色近战攻击", {
+                clientSessionId: client.sessionId,
+                payload: message
+            });
+            this.broadcast(MessageType.RoleAttackMelee, message);
+        });
+
+        this.onMessage(MessageType.RoleReduceHp, (client, message: RoleReduceHpMsg) => {
+            this.logger.debug("收到角色扣血", {
+                clientSessionId: client.sessionId,
+                payload: message
+            });
+            this.broadcast(MessageType.RoleReduceHp, message);
+        });
 
     }
 
@@ -351,14 +422,14 @@ export class CellRoomTiny extends Room<CellRoomUnit> {
             this.logger.info("根据解析地图设置世界尺寸", { width: this.width, height: this.height });
 
             for (const spawn of this.parsedMap.monsterSpawns) {
-                
+
                 const m = new MonsterUnit();
                 m.id = randomInt(1, 1000000);
                 m.position = initializeScheme(new Vec2());
                 // m.position.x = spawn.position.x * this.scaleWidth;
                 // m.position.y = spawn.position.y * this.scaleHeight;
-                m.position.x = spawn.position.x - this.width;
-                m.position.y = -(spawn.position.y - this.height);
+                m.position.x = spawn.position.x - this.width / 2 + 557;
+                m.position.y = -(spawn.position.y - this.height / 2) + 990;
                 m.inputState = 0;
                 m.hp = 100;
                 m.mp = 100;
@@ -368,7 +439,6 @@ export class CellRoomTiny extends Room<CellRoomUnit> {
                 m.inputState = 0;
                 this.state.monsters.set(`${m.id}`, m);
                 this.monsterWorld.add(m);
-                break;
                 // this.state.monsters.set(`${m.id}`, m);
                 // if ((m as any).circleBounds) {
                 //     (m as any).circleBounds.x = m.position.x;

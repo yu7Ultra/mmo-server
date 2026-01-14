@@ -777,7 +777,7 @@
       "visible": true,
       "opacity": 1,
       "properties": {
-        "monster_id": "1"
+        "monster_id": "29"
       },
       "objects": [
         {
@@ -787,7 +787,7 @@
           "x": 1004,
           "y": 2596,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "29"
           }
         },
         {
@@ -797,7 +797,7 @@
           "x": 496,
           "y": 2382,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "28"
           }
         },
         {
@@ -807,7 +807,7 @@
           "x": 286,
           "y": 2378,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "27"
           }
         },
         {
@@ -817,7 +817,7 @@
           "x": 478,
           "y": 2284,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "26"
           }
         },
         {
@@ -827,7 +827,7 @@
           "x": 482,
           "y": 2480,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "25"
           }
         },
         {
@@ -837,7 +837,7 @@
           "x": 674,
           "y": 2372,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "24"
           }
         },
         {
@@ -847,7 +847,7 @@
           "x": 1060,
           "y": 2560,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "23"
           }
         },
         {
@@ -857,7 +857,7 @@
           "x": 1110,
           "y": 2528,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "22"
           }
         },
         {
@@ -867,7 +867,7 @@
           "x": 1152,
           "y": 2574,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "21"
           }
         },
         {
@@ -877,7 +877,7 @@
           "x": 1100,
           "y": 2618,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "20"
           }
         },
         {
@@ -887,7 +887,7 @@
           "x": 1042,
           "y": 2660,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "19"
           }
         },
         {
@@ -897,7 +897,7 @@
           "x": 1306,
           "y": 2430,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "18"
           }
         },
         {
@@ -907,7 +907,7 @@
           "x": 1374,
           "y": 2392,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "17"
           }
         },
         {
@@ -917,7 +917,7 @@
           "x": 1454,
           "y": 2340,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "16"
           }
         },
         {
@@ -927,7 +927,7 @@
           "x": 2144,
           "y": 2660,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "15"
           }
         },
         {
@@ -937,7 +937,7 @@
           "x": 1960,
           "y": 2580,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "14"
           }
         },
         {
@@ -947,7 +947,7 @@
           "x": 2022,
           "y": 2690,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "13"
           }
         },
         {
@@ -957,7 +957,7 @@
           "x": 1866,
           "y": 2660,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "12"
           }
         },
         {
@@ -967,7 +967,7 @@
           "x": 1880,
           "y": 2788,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "11"
           }
         },
         {
@@ -977,7 +977,7 @@
           "x": 2678,
           "y": 3084,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "10"
           }
         },
         {
@@ -987,7 +987,7 @@
           "x": 698,
           "y": 3634,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "9"
           }
         },
         {
@@ -997,7 +997,7 @@
           "x": 726,
           "y": 3516,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "8"
           }
         },
         {
@@ -1007,7 +1007,7 @@
           "x": 830,
           "y": 3588,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "7"
           }
         },
         {
@@ -1017,7 +1017,7 @@
           "x": 532,
           "y": 3624,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "6"
           }
         },
         {
@@ -1027,7 +1027,7 @@
           "x": 2546,
           "y": 3066,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "5"
           }
         },
         {
@@ -1037,7 +1037,7 @@
           "x": 2672,
           "y": 2966,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "4"
           }
         },
         {
@@ -1047,7 +1047,7 @@
           "x": 2622,
           "y": 3140,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "3"
           }
         },
         {
@@ -1057,7 +1057,7 @@
           "x": 2808,
           "y": 3080,
           "properties": {
-            "monster_id": "1"
+            "monster_id": "2"
           }
         },
         {

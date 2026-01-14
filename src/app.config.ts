@@ -23,8 +23,21 @@ import { loggerService, stream } from './services/loggerService';
 dotenv.config();
 
 const port = Number(process.env.PORT) || 2567;
+const instanceIndex = Number(process.env.NODE_APP_INSTANCE) || 0;
+const announcedPort = port + instanceIndex;
 const redisUrl = process.env.REDIS_URL;
-const publicAddress = process.env.PUBLIC_ADDRESS || `localhost:${port}`;
+const publicAddressEnv = process.env.PUBLIC_ADDRESS || 'localhost';
+
+// Avoid advertising malformed addresses like "host:port/port" by normalizing here
+const resolvePublicAddress = (address: string, targetPort: number) => {
+    // If a port is already present ("host:1234"), respect it as-is
+    if (address.includes(':')) {
+        return address;
+    }
+    return `${address}:${targetPort}`;
+};
+
+const publicAddress = resolvePublicAddress(publicAddressEnv, announcedPort);
 
 console.log('Configuration:', {
     port,
@@ -36,7 +49,7 @@ console.log('Configuration:', {
 const config: ConfigOptions = {
     options: {
         // Public address for this server instance
-        publicAddress: `${publicAddress}/${(Number(process.env.PORT) + Number(process.env.NODE_APP_INSTANCE))}`,
+        publicAddress,
         // Redis-based horizontal scaling (enabled when REDIS_URL is set)
         // presence: new RedisPresence(redisUrl),
         devMode: process.env.NODE_ENV === 'development',  // Only enable in dev
