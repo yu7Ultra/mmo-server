@@ -19,6 +19,7 @@
   "dependencies": {
     "@colyseus/schema": "^3.0.61",
     "colyseus.js": "^0.16.0",
+    "express": "^5.1.0",
     "pixi.js": "^8.0.0"
   }
 }

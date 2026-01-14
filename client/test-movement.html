@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement Configuration Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: rgba(40, 40, 40, 0.9);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .test-section h2 {
+            color: #4af;
+            margin-top: 0;
+        }
+        .key-display {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .key-box {
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 8px 12px;
+            min-width: 40px;
+            text-align: center;
+            font-weight: bold;
+        }
+        button {
+            background: rgba(60, 60, 100, 0.8);
+            border: 1px solid #66f;
+            border-radius: 4px;
+            padding: 8px 16px;
+            color: #fff;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: rgba(80, 80, 120, 0.9);
+        }
+        .status {
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .success {
+            background: rgba(0, 100, 0, 0.3);
+            border: 1px solid #0a0;
+        }
+        .error {
+            background: rgba(100, 0, 0, 0.3);
+            border: 1px solid #a00;
+        }
+        .info {
+            background: rgba(0, 0, 100, 0.3);
+            border: 1px solid #00a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Movement Configuration Test</h1>
+        
+        <div class="test-section">
+            <h2>Current Movement Keys</h2>
+            <div id="current-keys" class="key-display">
+                <div class="key-box" id="up-key">-</div>
+                <div class="key-box" id="down-key">-</div>
+                <div class="key-box" id="left-key">-</div>
+                <div class="key-box" id="right-key">-</div>
+            </div>
+            <div id="key-status" class="status info">Loading...</div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Key Change Test</h2>
+            <p>Click the buttons below to test changing movement keys:</p>
+            <button onclick="testWASD()">Set to WASD</button>
+            <button onclick="testArrows()">Set to Arrow Keys</button>
+            <button onclick="testCustom()">Set to IJKL</button>
+            <div id="test-status" class="status info">Ready to test changes...</div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Storage Test</h2>
+            <p>Test if keys are properly saved to and loaded from localStorage:</p>
+            <button onclick="testStorage()">Test Storage</button>
+            <div id="storage-status" class="status info">Ready to test storage...</div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Environment Variable Test</h2>
+            <p>Check if environment variables are properly loaded:</p>
+            <button onclick="testEnvVars()">Test Environment Variables</button>
+            <div id="env-status" class="status info">Ready to test environment variables...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Mock import.meta.env for testing
+        window.importMetaEnv = {
+            VITE_MOVEMENT_KEYS: '{"up":"w","down":"s","left":"a","right":"d"}'
+        };
+        
+        // Simplified movement config for testing
+        const DEFAULT_MOVEMENT_KEYS = {
+            up: 'w',
+            down: 's',
+            left: 'a',
+            right: 'd'
+        };
+        
+        const ARROW_KEYS = {
+            up: 'ArrowUp',
+            down: 'ArrowDown',
+            left: 'ArrowLeft',
+            right: 'ArrowRight'
+        };
+        
+        function loadMovementKeys() {
+            try {
+                const saved = localStorage.getItem('movementKeys');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.up && parsed.down && parsed.left && parsed.right) {
+                        return parsed;
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to load movement keys from localStorage:', error);
+            }
+            
+            try {
+                const envKeys = window.importMetaEnv.VITE_MOVEMENT_KEYS;
+                if (envKeys) {
+                    const parsed = JSON.parse(envKeys);
+                    if (parsed.up && parsed.down && parsed.left && parsed.right) {
+                        return parsed;
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to parse movement keys from environment:', error);
+            }
+            
+            return DEFAULT_MOVEMENT_KEYS;
+        }
+        
+        function saveMovementKeys(keys) {
+            try {
+                localStorage.setItem('movementKeys', JSON.stringify(keys));
+                return true;
+            } catch (error) {
+                console.warn('Failed to save movement keys to localStorage:', error);
+                return false;
+            }
+        }
+        
+        function updateKeyDisplay(keys) {
+            document.getElementById('up-key').textContent = keys.up.toUpperCase();
+            document.getElementById('down-key').textContent = keys.down.toUpperCase();
+            document.getElementById('left-key').textContent = keys.left.toUpperCase();
+            document.getElementById('right-key').textContent = keys.right.toUpperCase();
+        }
+        
+        function updateStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+        
+        // Initialize display
+        const currentKeys = loadMovementKeys();
+        updateKeyDisplay(currentKeys);
+        updateStatus('key-status', 'Successfully loaded movement keys', 'success');
+        
+        // Test functions
+        window.testWASD = function() {
+            const result = saveMovementKeys(DEFAULT_MOVEMENT_KEYS);
+            if (result) {
+                updateKeyDisplay(DEFAULT_MOVEMENT_KEYS);
+                updateStatus('test-status', 'Successfully set to WASD keys', 'success');
+            } else {
+                updateStatus('test-status', 'Failed to save WASD keys', 'error');
+            }
+        };
+        
+        window.testArrows = function() {
+            const result = saveMovementKeys(ARROW_KEYS);
+            if (result) {
+                updateKeyDisplay(ARROW_KEYS);
+                updateStatus('test-status', 'Successfully set to Arrow keys', 'success');
+            } else {
+                updateStatus('test-status', 'Failed to save Arrow keys', 'error');
+            }
+        };
+        
+        window.testCustom = function() {
+            const customKeys = {
+                up: 'i',
+                down: 'k',
+                left: 'j',
+                right: 'l'
+            };
+            const result = saveMovementKeys(customKeys);
+            if (result) {
+                updateKeyDisplay(customKeys);
+                updateStatus('test-status', 'Successfully set to IJKL keys', 'success');
+            } else {
+                updateStatus('test-status', 'Failed to save IJKL keys', 'error');
+            }
+        };
+        
+        window.testStorage = function() {
+            // Save test keys
+            const testKeys = {
+                up: 'test',
+                down: 'keys',
+                left: 'here',
+                right: 'now'
+            };
+            
+            const saveResult = saveMovementKeys(testKeys);
+            if (!saveResult) {
+                updateStatus('storage-status', 'Failed to save test keys', 'error');
+                return;
+            }
+            
+            // Load keys back
+            const loadedKeys = loadMovementKeys();
+            
+            // Verify all keys match
+            const keysMatch = Object.keys(testKeys).every(key => testKeys[key] === loadedKeys[key]);
+            
+            if (keysMatch) {
+                updateStatus('storage-status', 'Storage test passed! Keys were saved and loaded correctly', 'success');
+                // Restore original keys
+                const originalKeys = loadMovementKeys();
+                updateKeyDisplay(originalKeys);
+            } else {
+                updateStatus('storage-status', 'Storage test failed! Keys did not match after loading', 'error');
+            }
+        };
+        
+        window.testEnvVars = function() {
+            const envKeys = window.importMetaEnv.VITE_MOVEMENT_KEYS;
+            if (envKeys) {
+                try {
+                    const parsed = JSON.parse(envKeys);
+                    if (parsed.up && parsed.down && parsed.left && parsed.right) {
+                        updateStatus('env-status', `Environment variables loaded: ${JSON.stringify(parsed)}`, 'success');
+                    } else {
+                        updateStatus('env-status', 'Environment variable format is invalid', 'error');
+                    }
+                } catch (error) {
+                    updateStatus('env-status', `Failed to parse environment variables: ${error.message}`, 'error');
+                }
+            } else {
+                updateStatus('env-status', 'No movement keys environment variable found', 'info');
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+// FlatBuffers schema for GlobalRoomState
+// Generated from TypeScript Colyseus Schema
+
+namespace MMO;
+
+enum RoleType : byte {
+    Unknown = 0,
+    Player = 1,      // 玩家
+    NPC = 2,         // 普通 NPC
+    Monster = 3,     // 普通怪物
+    Boss = 4,        // Boss 怪
+    Pet = 5,         // 宠物
+    Summon = 6,      // 召唤物
+    Ally = 7,        // 队友/同伴
+    Merchant = 8,    // 商人
+    QuestGiver = 9,  // 任务发布者
+    Other = 10,      // 其他
+    Bullet = 11,     // 投射物
+    Mouse = 12,      // 鼠标指示器
+    ViewArea = 13    // 视野范围的单位
+}
+
+enum MessageType : uint8 {
+    Frame = 1,
+    Move = 2,
+    SkillUse = 3,
+    Chat = 4,
+    Stop_Move = 5,
+    addChild = 6,
+    removeChild = 7,
+    Spawn = 250,
+    Despawn = 251,
+    Room_Full = 252,
+    Update_State = 252,
+    Heartbeat = 253,
+    Sync_Request = 254,
+    Unknown = 0
+}
+
+// ============================================
+// Basic Data Types
+// ============================================
+
+table Vec2 {
+    x: float;
+    y: float;
+}
+
+// ============================================
+// Player and Unit Types
+// ============================================
+
+table PlayerUnit {
+    id: uint;
+    position: Vec2;
+    hp: ubyte;
+    mp: ubyte;
+    type: RoleType = 0;
+}
+
+table LeaderUnit {
+    id: uint;
+    position: Vec2;
+    players: [PlayerUnit];
+    radius: float;
+    view_radius: float;
+    type: RoleType;
+    session_id: string;
+    velocity: Vec2;
+    pre_position: Vec2;
+}
+
+table CellRoomUnit {
+    cell_room_id: uint;
+    player_count: uint;
+    frame_number: uint;
+    leaders: [LeaderUnit];
+}
+
+// ============================================
+// Global Room State
+// ============================================
+
+table GlobalRoomState {
+    server_version: string;
+    online_player_count: uint;
+    uptime_seconds: uint;
+    players: [PlayerUnit];
+}
+
+// ============================================
+// Command Messages
+// ============================================
+
+table CommandMessage {
+    type: MessageType;
+    from: uint;
+}
+
+table MoveCommandMessage {
+    type: MessageType;
+    from: uint;
+    velocity: Vec2;
+}
+
+table UnSpawnCommandMessage {
+    type: MessageType;
+    from: uint;
+    id: uint;
+}
+
+table SpawnCommandMessage {
+    type: MessageType;
+    from: uint;
+    id: uint;
+    position: Vec2;
+}
+
+table AddChildCommandMessage {
+    type: MessageType;
+    from: uint;
+    child_id: uint;
+    assigned_position: Vec2;
+}
+
+table ChildUpdateCommandMessage {
+    type: MessageType;
+    from: uint;
+    child_id: uint;
+    position: Vec2;
+    hp: ubyte;
+    mp: ubyte;
+}
+
+table RemoveChildCommandMessage {
+    type: MessageType;
+    from: uint;
+    child_id: uint;
+}
+
+// ============================================
+// Frame Info
+// ============================================
+
+union CommandUnion {
+    MoveCommandMessage,
+    UnSpawnCommandMessage,
+    SpawnCommandMessage,
+    AddChildCommandMessage,
+    ChildUpdateCommandMessage,
+    RemoveChildCommandMessage
+}
+
+table FrameInfo {
+    frame_number: uint;
+    random_seed: uint;
+    timestamp: uint;
+    delta_time: float;
+    commands: [CommandUnion];
+}
+
+root_type GlobalRoomState;

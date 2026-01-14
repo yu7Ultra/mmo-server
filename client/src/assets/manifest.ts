@@ -21,8 +21,8 @@ export const MONSTER_GHOST: AssetDefinition = {
   name: 'monster_ghost',
   url: 'assets/oga/LPC Base Assets/sprites/monsters/ghost.png',
   type: 'image',
-  frameWidth: 32,
-  frameHeight: 32,
+  frameWidth: 40,
+  frameHeight: 46,
   frames: 12,
   directions: 4
 };

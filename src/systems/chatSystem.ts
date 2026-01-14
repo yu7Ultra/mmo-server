@@ -1,4 +1,5 @@
-import { ChatMessage } from '../schemas/MyRoomState';
+import { ChatMessage as MyRoomChatMessage } from '../schemas/MyRoomState';
+import { ChatMessage as ChatRoomChatMessage } from '../schemas/ChatRoomState';
 import * as prom from '../instrumentation/prometheusMetrics';
 
 /**
@@ -14,7 +15,7 @@ export class ChatManager {
   private readonly bannedWords = ['spam', 'hack', 'cheat'];
   
   /**
-   * Add a chat message with rate limiting and filtering
+   * Add a chat message with rate limiting and filtering (for MyRoom compatibility)
    */
   addMessage(
     chatMessages: any,
@@ -22,6 +23,20 @@ export class ChatManager {
     playerName: string,
     message: string,
     channel: string = 'global'
+  ): boolean {
+    return this.addExtendedMessage(chatMessages, sessionId, playerName, message, channel);
+  }
+  
+  /**
+   * Add a chat message with extended options for ChatRoom
+   */
+  addExtendedMessage(
+    chatMessages: any,
+    sessionId: string,
+    playerName: string,
+    message: string,
+    channel: string = 'global',
+    target: string = ''
   ): boolean {
     // Rate limiting
     const now = Date.now();
@@ -42,15 +57,26 @@ export class ChatManager {
       return false; // Contains banned content
     }
     
-    // Create message
-    const chatMsg = new ChatMessage();
-    chatMsg.sender = playerName;
-    chatMsg.message = sanitized;
-    chatMsg.timestamp = now;
-    chatMsg.channel = channel;
-    
-    // Add to messages array
-    chatMessages.push(chatMsg);
+    // Create appropriate message type based on chatMessages type
+    if (chatMessages[0] instanceof ChatRoomChatMessage) {
+      // For ChatRoomState
+      const chatMsg = new ChatRoomChatMessage();
+      chatMsg.sender = playerName;
+      chatMsg.message = sanitized;
+      chatMsg.timestamp = now;
+      chatMsg.channel = channel;
+      chatMsg.target = target;
+      chatMsg.senderId = sessionId;
+      chatMessages.push(chatMsg);
+    } else {
+      // For MyRoomState (backward compatibility)
+      const chatMsg = new MyRoomChatMessage();
+      chatMsg.sender = playerName;
+      chatMsg.message = sanitized;
+      chatMsg.timestamp = now;
+      chatMsg.channel = channel;
+      chatMessages.push(chatMsg);
+    }
     
     // Keep only last N messages (performance optimization)
     while (chatMessages.length > this.maxMessages) {
@@ -84,10 +110,10 @@ export class ChatManager {
     
     // Basic HTML escape to prevent XSS
     sanitized = sanitized
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
+      .replace(/&/g, '&')
+      .replace(/</g, '<')
+      .replace(/>/g, '>')
+      .replace(/"/g, '"')
       .replace(/'/g, '&#039;');
     
     return sanitized;

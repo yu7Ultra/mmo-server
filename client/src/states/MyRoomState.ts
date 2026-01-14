@@ -7,10 +7,10 @@
 
 import { Schema, type, ArraySchema, MapSchema, SetSchema, DataChange } from '@colyseus/schema';
 import { Player } from './Player'
+import { Monster } from './Monster'
 import { ChatMessage } from './ChatMessage'
 import { LeaderboardEntry } from './LeaderboardEntry'
 import { VoiceChannel } from './VoiceChannel'
-import { Monster } from './Monster'
 
 export class MyRoomState extends Schema {
     @type({ map: Player }) public players: MapSchema<Player> = new MapSchema<Player>();

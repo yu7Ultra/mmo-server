@@ -16,6 +16,7 @@ interface ClientEnvConfig {
   TENCENT_SDK_APP_ID?: string;
   ALIYUN_APP_ID?: string;
   ZEGO_APP_ID?: string;
+  MOVEMENT_KEYS?: string; // JSON string for movement key configuration
 }
 
 function toNumber(val: any, fallback: number): number {
@@ -37,7 +38,8 @@ export const EnvConfig: ClientEnvConfig = {
   AGORA_APP_ID: import.meta.env.VITE_AGORA_APP_ID || undefined,
   TENCENT_SDK_APP_ID: import.meta.env.VITE_TENCENT_SDK_APP_ID || undefined,
   ALIYUN_APP_ID: import.meta.env.VITE_ALIYUN_APP_ID || undefined,
-  ZEGO_APP_ID: import.meta.env.VITE_ZEGO_APP_ID || undefined
+  ZEGO_APP_ID: import.meta.env.VITE_ZEGO_APP_ID || undefined,
+  MOVEMENT_KEYS: import.meta.env.VITE_MOVEMENT_KEYS || undefined
 };
 
 // Helper for logging config (avoid leaking secrets; these are client-side anyway)

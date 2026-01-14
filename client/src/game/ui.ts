@@ -1,6 +1,7 @@
 import { Room } from 'colyseus.js';
 import { MyRoomState } from '../states/MyRoomState';
 import { Player } from '../states/Player';
+import { getMovementKeys, updateMovementKeys, DEFAULT_MOVEMENT_KEYS, ARROW_KEYS } from '../config/movementConfig';
 
 export function createUI(container: HTMLElement) {
     container.innerHTML = `
@@ -22,11 +23,45 @@ export function createUI(container: HTMLElement) {
                 </div>
                 <div id="controls-panel" class="panel">
                     <h3>控制说明</h3>
-                    <div class="controls-info">
-                        <div>↑↓←→ 移动</div>
+                    <div class="controls-info" id="controls-info">
+                        <div>移动按键将在此显示</div>
                         <div>1-4 使用技能</div>
                         <div>点击敌人攻击</div>
                     </div>
+                    <button id="settings-btn" class="settings-btn">⚙️ 设置</button>
+                </div>
+                <div id="settings-panel" class="panel hidden">
+                    <h3>按键设置</h3>
+                    <div class="settings-content">
+                        <div class="key-config">
+                            <h4>移动按键</h4>
+                            <div class="key-row">
+                                <label>上:</label>
+                                <input type="text" id="key-up" class="key-input" maxlength="1" readonly>
+                                <button class="key-change-btn" data-direction="up">更改</button>
+                            </div>
+                            <div class="key-row">
+                                <label>下:</label>
+                                <input type="text" id="key-down" class="key-input" maxlength="1" readonly>
+                                <button class="key-change-btn" data-direction="down">更改</button>
+                            </div>
+                            <div class="key-row">
+                                <label>左:</label>
+                                <input type="text" id="key-left" class="key-input" maxlength="1" readonly>
+                                <button class="key-change-btn" data-direction="left">更改</button>
+                            </div>
+                            <div class="key-row">
+                                <label>右:</label>
+                                <input type="text" id="key-right" class="key-input" maxlength="1" readonly>
+                                <button class="key-change-btn" data-direction="right">更改</button>
+                            </div>
+                            <div class="preset-buttons">
+                                <button id="preset-wasd" class="preset-btn">WASD</button>
+                                <button id="preset-arrows" class="preset-btn">方向键</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="close-settings" class="close-btn">关闭</button>
                 </div>
                 <div id="player-stats" class="panel">
                     <h3>玩家状态</h3>
@@ -167,11 +202,163 @@ export function setupUIHandlers(room: Room<MyRoomState>, currentPlayerId: string
     const chatSend = document.getElementById('chat-send') as HTMLButtonElement;
     const sendChat = () => { const message = chatInput.value.trim(); if (message) { room.send('chat', { message, channel: 'global' }); chatInput.value = ''; } };
     chatSend?.addEventListener('click', sendChat); chatInput?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChat(); });
-    window.addEventListener('keypress', (e) => { const player = room.state.players.get(currentPlayerId); if (!player) return; const skillMap: { [key: string]: number } = { '1': 0, '2': 1, '3': 2, '4': 3 }; if (e.key in skillMap) { const skillIndex = skillMap[e.key]; if (player.skills[skillIndex]) { const skill = player.skills[skillIndex]; const cooldownRemaining = Math.max(0, skill.cooldown - (Date.now() - skill.lastUsed)); if (cooldownRemaining === 0 && player.mana >= skill.manaCost) { if (skill.id === 'heal' || skill.id === 'shield' || skill.id === 'dash') { room.send('attack', { targetId: currentPlayerId, skillId: skill.id }); } else { const target = findNearestEnemy(room.state.players, currentPlayerId, player as any); if (target) { room.send('attack', { targetId: target, skillId: skill.id }); } } } } } });
+    window.addEventListener('keypress', (e) => { const player = room.state.players.get(currentPlayerId); if (!player) return; const skillMap: { [key: string]: number } = { '1': 0, '2': 1, '3': 2, '4': 3 }; if (e.key in skillMap) { const skillIndex = skillMap[e.key]; if (player.skills[skillIndex]) { const skill = player.skills[skillIndex]; const cooldownRemaining = Math.max(0, skill.cooldown - (Date.now() - skill.lastUsed)); if (cooldownRemaining === 0 && player.mana >= skill.manaCost) { if (skill.id === 'heal' || skill.id === 'shield' || skill.id === 'dash') { room.send('attack', { targetId: currentPlayerId, skillId: skill.id }); } else { const target = findNearestEnemy(room.state, currentPlayerId, player as any); if (target) { room.send('attack', { targetId: target, skillId: skill.id }); } else { console.log('No valid target in range for skill'); } } } } } });
+    
+    // Setup settings panel handlers
+    setupSettingsHandlers();
 }
 
-function findNearestEnemy(players: any, currentPlayerId: string, currentPlayer: Player): string | null {
-    let nearestId: string | null = null; let nearestDistance = Infinity;
-    players.forEach((player: Player, sessionId: string) => { if (sessionId === currentPlayerId) return; const dx = player.x - currentPlayer.x; const dy = player.y - currentPlayer.y; const distance = Math.sqrt(dx * dx + dy * dy); if (distance < nearestDistance) { nearestDistance = distance; nearestId = sessionId; } });
+function setupSettingsHandlers() {
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsPanel = document.getElementById('settings-panel');
+    const closeSettingsBtn = document.getElementById('close-settings');
+    const presetWASDBtn = document.getElementById('preset-wasd');
+    const presetArrowsBtn = document.getElementById('preset-arrows');
+    
+    // Show/hide settings panel
+    settingsBtn?.addEventListener('click', () => {
+        settingsPanel?.classList.remove('hidden');
+        updateKeyDisplay();
+    });
+    
+    closeSettingsBtn?.addEventListener('click', () => {
+        settingsPanel?.classList.add('hidden');
+    });
+    
+    // Preset buttons
+    presetWASDBtn?.addEventListener('click', () => {
+        updateMovementKeys(DEFAULT_MOVEMENT_KEYS);
+        updateKeyDisplay();
+        updateControlsInfo();
+    });
+    
+    presetArrowsBtn?.addEventListener('click', () => {
+        updateMovementKeys(ARROW_KEYS);
+        updateKeyDisplay();
+        updateControlsInfo();
+    });
+    
+    // Key change buttons
+    const keyChangeButtons = document.querySelectorAll('.key-change-btn');
+    keyChangeButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            const direction = (e.target as HTMLElement).dataset.direction;
+            if (direction) {
+                startKeyChange(direction);
+            }
+        });
+    });
+    
+    // Initialize display
+    updateKeyDisplay();
+    updateControlsInfo();
+}
+
+function updateKeyDisplay() {
+    const keys = getMovementKeys();
+    const keyUp = document.getElementById('key-up') as HTMLInputElement;
+    const keyDown = document.getElementById('key-down') as HTMLInputElement;
+    const keyLeft = document.getElementById('key-left') as HTMLInputElement;
+    const keyRight = document.getElementById('key-right') as HTMLInputElement;
+    
+    if (keyUp) keyUp.value = keys.up.toUpperCase();
+    if (keyDown) keyDown.value = keys.down.toUpperCase();
+    if (keyLeft) keyLeft.value = keys.left.toUpperCase();
+    if (keyRight) keyRight.value = keys.right.toUpperCase();
+}
+
+function updateControlsInfo() {
+    const keys = getMovementKeys();
+    const controlsInfo = document.getElementById('controls-info');
+    if (controlsInfo) {
+        controlsInfo.innerHTML = `
+            <div>${keys.up.toUpperCase()}${keys.down.toUpperCase()}${keys.left.toUpperCase()}${keys.right.toUpperCase()} 移动</div>
+            <div>1-4 使用技能</div>
+            <div>点击敌人攻击</div>
+        `;
+    }
+}
+
+let currentKeyChangeDirection: string | null = null;
+
+function startKeyChange(direction: string) {
+    currentKeyChangeDirection = direction;
+    const button = document.querySelector(`[data-direction="${direction}"]`) as HTMLButtonElement;
+    if (button) {
+        button.textContent = '按下任意键...';
+        button.disabled = true;
+    }
+    
+    // Add temporary key listener
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (currentKeyChangeDirection === direction) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const newKey = e.key.toLowerCase();
+            
+            // Update the key
+            updateMovementKeys({ [direction]: newKey });
+            
+            // Update display
+            updateKeyDisplay();
+            updateControlsInfo();
+            
+            // Reset button
+            if (button) {
+                button.textContent = '更改';
+                button.disabled = false;
+            }
+            
+            // Clean up
+            currentKeyChangeDirection = null;
+            window.removeEventListener('keydown', handleKeyDown, true);
+        }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown, true);
+}
+
+function findNearestEnemy(state: MyRoomState, currentPlayerId: string, currentPlayer: Player): string | null {
+    const MAX_SKILL_RANGE = 200;
+    let nearestId: string | null = null;
+    let nearestDistance = Infinity;
+
+    // Priority 1: Check monsters first (within range)
+    state.monsters.forEach((monster: any, monsterId: string) => {
+        if (monster.state === 'dead') return; // Skip dead monsters
+        const dx = monster.x - currentPlayer.x;
+        const dy = monster.y - currentPlayer.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance <= MAX_SKILL_RANGE && distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestId = monsterId;
+        }
+    });
+
+    // If found monster in range, return it
+    if (nearestId) {
+        console.log(`Skill targeting monster: ${nearestId} distance: ${nearestDistance.toFixed(0)}px`);
+        return nearestId;
+    }
+
+    // Priority 2: Fall back to players (within range)
+    state.players.forEach((player: Player, sessionId: string) => {
+        if (sessionId === currentPlayerId) return; // Skip self
+        const dx = player.x - currentPlayer.x;
+        const dy = player.y - currentPlayer.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance <= MAX_SKILL_RANGE && distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestId = sessionId;
+        }
+    });
+
+    if (nearestId) {
+        console.log(`Skill targeting player: ${nearestId} distance: ${nearestDistance.toFixed(0)}px`);
+    } else {
+        console.log(`No target in range (max: ${MAX_SKILL_RANGE}px)`);
+    }
+
     return nearestId;
 }

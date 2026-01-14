@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>怪物和玩家插值平滑测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+        }
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+        #game-container {
+            flex: 1;
+            position: relative;
+        }
+        #game-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #info-panel {
+            width: 300px;
+            background-color: #2a2a2a;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .info-section {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+        .info-section h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-active {
+            background-color: #4CAF50;
+        }
+        .status-inactive {
+            background-color: #f44336;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .metrics {
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="game-container">
+            <canvas id="game-canvas"></canvas>
+        </div>
+        <div id="info-panel">
+            <div class="info-section">
+                <h3>插值平滑测试</h3>
+                <p>此页面用于测试怪物和玩家的插值平滑效果。</p>
+                <p><span class="status-indicator status-active"></span>玩家已有插值平滑</p>
+                <p><span class="status-indicator status-active"></span>怪物已添加插值平滑</p>
+            </div>
+            
+            <div class="info-section">
+                <h3>测试说明</h3>
+                <p>1. 启动游戏服务器</p>
+                <p>2. 点击下方按钮连接</p>
+                <p>3. 观察怪物移动是否平滑</p>
+                <p>4. 使用 WASD 或方向键移动</p>
+                <p>5. 点击怪物进行攻击</p>
+            </div>
+            
+            <div class="info-section">
+                <h3>控制</h3>
+                <button id="connect-btn">连接服务器</button>
+                <button id="spawn-monster-btn">生成怪物</button>
+                <button id="toggle-smooth-btn">切换平滑显示</button>
+            </div>
+            
+            <div class="info-section">
+                <h3>性能指标</h3>
+                <div id="metrics" class="metrics">
+                    <div>FPS: <span id="fps">0</span></div>
+                    <div>玩家数量: <span id="player-count">0</span></div>
+                    <div>怪物数量: <span id="monster-count">0</span></div>
+                    <div>插值状态: <span id="interpolation-status">未知</span></div>
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <h3>插值算法说明</h3>
+                <p>使用了与玩家相同的插值算法：</p>
+                <ul>
+                    <li>自适应插值时间（60-180ms）</li>
+                    <li>基于服务器更新间隔的动态调整</li>
+                    <li>二次缓动函数（ease-out quad）</li>
+                    <li>位置预测（可选）</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 导入主游戏逻辑
+        import './src/main.ts';
+        
+        // 添加测试功能
+        document.getElementById('connect-btn').addEventListener('click', () => {
+            console.log('连接按钮被点击');
+        });
+        
+        document.getElementById('spawn-monster-btn').addEventListener('click', () => {
+            console.log('生成怪物按钮被点击');
+        });
+        
+        let interpolationEnabled = true;
+        document.getElementById('toggle-smooth-btn').addEventListener('click', () => {
+            interpolationEnabled = !interpolationEnabled;
+            document.getElementById('interpolation-status').textContent = interpolationEnabled ? '启用' : '禁用';
+            console.log('插值平滑:', interpolationEnabled ? '启用' : '禁用');
+        });
+        
+        // 模拟性能指标更新
+        let frameCount = 0;
+        let lastTime = performance.now();
+        
+        function updateMetrics() {
+            frameCount++;
+            const currentTime = performance.now();
+            const elapsed = currentTime - lastTime;
+            
+            if (elapsed >= 1000) {
+                const fps = Math.round((frameCount * 1000) / elapsed);
+                document.getElementById('fps').textContent = fps;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+            
+            requestAnimationFrame(updateMetrics);
+        }
+        
+        updateMetrics();
+    </script>
+</body>
+</html>

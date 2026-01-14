@@ -153,9 +153,12 @@
           style="width:120px;background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;">
           <option value="native">native</option>
           <option value="agora">agora</option>
+          <option value="tencent">tencent</option>
         </select>
       </label>
       <label id="appIdWrap" style="display:none;">AppId: <input id="rtc-appid" placeholder="Agora AppId"
+          style="width:160px;background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;" /></label>
+      <label id="tencentAppIdWrap" style="display:none;">SDK AppId: <input id="tencent-appid" placeholder="Tencent SDK AppId"
           style="width:160px;background:#181818;color:#eee;border:1px solid #444;padding:4px;border-radius:4px;" /></label>
       <button id="connect-btn" onclick="connect()">Connect</button>
       <button id="disconnect-btn" onclick="disconnect()" disabled>Disconnect</button>
@@ -223,6 +226,15 @@
   <div class="section">
     <h2>调试日志</h2>
     <div id="log" class="log"></div>
+  <div class="section">
+    <h2>日志测试</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      <button onclick="testLogging()">测试日志功能</button>
+      <button onclick="testConnectionDetails()">测试连接详情</button>
+      <button onclick="testVoiceState()">测试语音状态</button>
+      <button onclick="clearLogs()">清空日志</button>
+    </div>
+  </div>
   </div>
 
   <script src="https://unpkg.com/colyseus.js@^0.16.0/dist/colyseus.js"></script>
@@ -248,9 +260,15 @@
       if (sel === 'agora') {
         activeProvider = createAgoraProvider();
         document.getElementById('appIdWrap').style.display = 'inline-block';
+        document.getElementById('tencentAppIdWrap').style.display = 'none';
+      } else if (sel === 'tencent') {
+        activeProvider = createTencentProvider();
+        document.getElementById('appIdWrap').style.display = 'none';
+        document.getElementById('tencentAppIdWrap').style.display = 'inline-block';
       } else {
         activeProvider = createNativeProvider();
         document.getElementById('appIdWrap').style.display = 'none';
+        document.getElementById('tencentAppIdWrap').style.display = 'none';
       }
     }
     document.getElementById('rtc-provider').addEventListener('change', () => { if (room) { log('切换 Provider 需要先断开连接', 'error'); } setupProvider(); });
@@ -308,6 +326,223 @@
     }
     async function injectScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.async = true; s.onload = () => res(); s.onerror = e => rej(e); document.head.appendChild(s); }); }
 
+    // Tencent TRTC provider
+    function createTencentProvider() {
+      let tencentClient = null;
+      let localTrack = null;
+      let joined = false;
+      let remoteLevels = new Map();
+      let localLevel = 0;
+      let audioCtx = null;
+      let analyserLocal = null;
+      let dataLocal = null;
+      const remoteStreams = new Map();
+
+      async function ensureSDK() {
+        if (window.TRTC) return window.TRTC;
+        // Load Tencent TRTC SDK
+        await injectScript('https://cdn.jsdelivr.net/npm/trtc-js-sdk@latest/TRTC.min.js');
+        return window.TRTC;
+      }
+
+      async function initLocal() {
+        const TRTC = await ensureSDK();
+        const sdkAppId = parseInt(document.getElementById('tencent-appid').value.trim());
+        if (!sdkAppId) {
+          throw new Error('缺少 Tencent SDK AppId');
+        }
+        tencentClient = TRTC.createClient({
+          mode: 'rtc',
+          sdkAppId: sdkAppId,
+          userId: room.sessionId,
+          userSig: '' // Will be set when joining channel
+        });
+
+        tencentClient.on('stream-added', event => {
+          const remoteStream = event.stream;
+          tencentClient.subscribe(remoteStream);
+        });
+
+        tencentClient.on('stream-subscribed', event => {
+          const remoteStream = event.stream;
+          remoteStream.play('remote-audio-' + remoteStream.getId());
+          const track = remoteStream.getAudioTrack();
+          if (track) {
+            const ms = new MediaStream([track]);
+            remoteStreams.set(remoteStream.getId().toString(), ms);
+            setupRemoteAnalyser(remoteStream.getId().toString(), ms);
+            updateChannelDisplay();
+            log('Tencent remote audio ' + remoteStream.getId(), 'success');
+          }
+        });
+
+        tencentClient.on('stream-removed', event => {
+          const remoteStream = event.stream;
+          remoteStreams.delete(remoteStream.getId().toString());
+          updateChannelDisplay();
+        });
+
+        // Create local audio track
+        localTrack = TRTC.createStream({
+          audio: true,
+          video: false,
+          userId: room.sessionId
+        });
+
+        await localTrack.initialize();
+        setupLocalAnalyser(localTrack.getAudioTrack());
+      }
+
+      function setupLocalAnalyser(track) {
+        if (!track) return;
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const src = audioCtx.createMediaStreamSource(new MediaStream([track]));
+        analyserLocal = audioCtx.createAnalyser();
+        analyserLocal.fftSize = 512;
+        src.connect(analyserLocal);
+        dataLocal = new Uint8Array(analyserLocal.frequencyBinCount);
+        const loop = () => {
+          if (analyserLocal && dataLocal) {
+            analyserLocal.getByteTimeDomainData(dataLocal);
+            let sum = 0;
+            for (let i = 0; i < dataLocal.length; i++) {
+              const v = (dataLocal[i] - 128) / 128;
+              sum += v * v;
+            }
+            localLevel = Math.min(1, Math.sqrt(sum / dataLocal.length) * 4);
+          }
+          requestAnimationFrame(loop);
+        };
+        loop();
+      }
+
+      function setupRemoteAnalyser(id, stream) {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const src = audioCtx.createMediaStreamSource(stream);
+        const an = audioCtx.createAnalyser();
+        an.fftSize = 512;
+        src.connect(an);
+        const data = new Uint8Array(an.frequencyBinCount);
+        remoteLevels.set(id, 0);
+        const loop = () => {
+          an.getByteTimeDomainData(data);
+          let s = 0;
+          for (let i = 0; i < data.length; i++) {
+            const v = (data[i] - 128) / 128;
+            s += v * v;
+          }
+          remoteLevels.set(id, Math.min(1, Math.sqrt(s / data.length) * 4));
+          requestAnimationFrame(loop);
+        };
+        loop();
+      }
+
+      return {
+        name: 'tencent',
+        joinChannel: async (channelId) => {
+          try {
+            if (!localTrack) await initLocal();
+            const sdkAppId = document.getElementById('tencent-appid').value.trim();
+            if (!sdkAppId) {
+              log('缺少 Tencent SDK AppId', 'error');
+              return;
+            }
+
+            // Get token from server
+            room.send('voice:tencent:get_token', { channelId: channelId });
+            
+            // Wait for token response
+            return new Promise((resolve, reject) => {
+              const tokenHandler = (msg) => {
+                if (msg.channelId === channelId) {
+                  room.removeListener('voice:tencent:token', tokenHandler);
+                  try {
+                    // Recreate client with the actual token received from server
+                    const TRTC = window.TRTC;
+                    const sdkAppId = parseInt(document.getElementById('tencent-appid').value.trim());
+                    
+                    tencentClient = TRTC.createClient({
+                      mode: 'rtc',
+                      sdkAppId: sdkAppId,
+                      userId: room.sessionId,
+                      userSig: msg.token // Use the actual token from server
+                    });
+                    
+                    // Re-setup event listeners
+                    tencentClient.on('stream-added', event => {
+                      const remoteStream = event.stream;
+                      tencentClient.subscribe(remoteStream);
+                    });
+                    
+                    tencentClient.on('stream-subscribed', event => {
+                      const remoteStream = event.stream;
+                      remoteStream.play('remote-audio-' + remoteStream.getId());
+                      const track = remoteStream.getAudioTrack();
+                      if (track) {
+                        const ms = new MediaStream([track]);
+                        remoteStreams.set(remoteStream.getId().toString(), ms);
+                        setupRemoteAnalyser(remoteStream.getId().toString(), ms);
+                        updateChannelDisplay();
+                        log('Tencent remote audio ' + remoteStream.getId(), 'success');
+                      }
+                    });
+                    
+                    tencentClient.on('stream-removed', event => {
+                      const remoteStream = event.stream;
+                      remoteStreams.delete(remoteStream.getId().toString());
+                      updateChannelDisplay();
+                    });
+                    
+                    tencentClient.join({
+                      roomId: channelId,
+                      role: 'anchor'
+                    }).then(() => {
+                      tencentClient.publish(localTrack);
+                      joined = true;
+                      log('Tencent joined channel ' + channelId, 'success');
+                      resolve();
+                    }).catch(reject);
+                  } catch (e) {
+                    reject(e);
+                  }
+                }
+              };
+              
+              room.onMessage('voice:tencent:token', tokenHandler);
+              
+              // Timeout after 10 seconds
+              setTimeout(() => {
+                room.removeListener('voice:tencent:token', tokenHandler);
+                reject(new Error('Token timeout'));
+              }, 10000);
+            });
+          } catch (e) {
+            log('Tencent join error ' + e.message, 'error');
+          }
+        },
+        leaveChannel: async () => {
+          if (!joined) return;
+          try {
+            await tencentClient.leave();
+            joined = false;
+            log('Tencent left channel', 'info');
+          } catch (e) {
+            log('Tencent leave error ' + e.message, 'error');
+          }
+        },
+        setMute: (m) => {
+          try {
+            localTrack?.muteAudio?.(m);
+          } catch (_) { }
+        },
+        setDeafen: (d) => {
+          // Could stop playback of remote; simplified skip
+        },
+        getLocalAudioLevel: () => localLevel,
+        getRemoteAudioLevels: () => remoteLevels
+      };
+    }
+
     let room = null;
     let localStream = null;
     const peerConnections = new Map();
@@ -350,6 +585,14 @@
         document.getElementById('disconnect-btn').disabled = false;
         // Some environments may briefly have an undefined room.id; guard for that.
         log('Room joined ' + (room.id || '(no-id-yet)'), 'success');
+        // 添加详细连接日志
+        if (room) {
+          console.log('连接详情:', {
+            sessionId: room.sessionId,
+            roomId: room.id,
+            state: room.state ? '已同步' : '未同步'
+          });
+        }
         setupVoiceListeners();
         // Provider initialized after connection for access to sessionId.
         setupProvider();
@@ -357,6 +600,13 @@
         startProviderLevelLoop();
         startStatsLoop();
       } catch (err) {
+        console.error('连接过程中发生错误', {
+          error: err.message,
+          stack: err.stack,
+          wsUrl: wsUrl,
+          roomName: roomName,
+          timestamp: new Date().toISOString()
+        });
         log('Connection error: ' + err.message, 'error');
       }
     }
@@ -371,7 +621,9 @@
       if (statsInterval) { clearInterval(statsInterval); statsInterval = null; }
       stopMeters();
       stopProviderLevelLoop();
-      if (activeProvider && activeProvider.name === 'agora') { try { activeProvider.leaveChannel?.(); } catch (_) { } }
+      if (activeProvider && (activeProvider.name === 'agora' || activeProvider.name === 'tencent')) {
+        try { activeProvider.leaveChannel?.(); } catch (_) { }
+      }
       document.getElementById('status').textContent = 'Disconnected';
       document.getElementById('status').style.background = '#512222';
       document.getElementById('connect-btn').disabled = false;
@@ -471,6 +723,11 @@
     function downloadRecord() { if (!recordingChunks.length) return; const blob = new Blob(recordingChunks, { type: 'audio/webm' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'voice_test_' + Date.now() + '.webm'; a.click(); URL.revokeObjectURL(url); }
 
     function setupVoiceListeners() {
+      console.log('设置语音监听器', {
+        roomId: room.id,
+        sessionId: room.sessionId,
+        stateKeys: room.state ? Object.keys(room.state) : '无状态'
+      });
       const $$ = Colyseus.getStateCallbacks(room);
       // Channels added
       $$(room.state).voiceChannels.onAdd((channel, channelId) => {
@@ -547,7 +804,49 @@
 
     function updateMyStatus() { if (!room) return; const me = room.state.players.get(room.sessionId); const status = document.getElementById('myStatus'); if (!me) { status.textContent = 'Not in voice'; return; } if (me.currentVoiceChannel) { const ch = room.state.voiceChannels.get(me.currentVoiceChannel); const cname = ch ? ch.name : me.currentVoiceChannel; status.innerHTML = `<div>频道: <strong>${cname}</strong></div><div>${me.voiceMuted ? '🔇 Muted' : '🎤 Unmuted'} | ${me.voiceDeafened ? '🙉 Deafened' : '👂 Hearing'}</div><div>Peers: ${peerConnections.size}</div>`; } else { status.textContent = 'Not in voice'; } }
 
-    async function setupPeerConnection(peerId) { if (peerConnections.has(peerId) || !localStream) return; log('Create peer ' + peerId); const pc = new RTCPeerConnection(rtcConfig); peerConnections.set(peerId, pc); localStream.getTracks().forEach(t => pc.addTrack(t, localStream)); pc.ontrack = (ev) => { log('Remote track from ' + peerId, 'success'); const audio = document.createElement('audio'); audio.autoplay = true; audio.srcObject = ev.streams[0]; document.body.appendChild(audio); pc.remoteAudio = audio; attachRemoteTrack(ev.streams[0]); attachRemotePeerTrack(peerId, ev.streams[0]); }; pc.onicecandidate = (ev) => { if (ev.candidate) room.send('voice:signal', { to: peerId, type: 'ice-candidate', data: ev.candidate.toJSON() }); }; pc.onconnectionstatechange = () => { log('PC state ' + peerId + ': ' + pc.connectionState); if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) closePeerConnection(peerId); }; const initiator = room.sessionId < peerId; if (initiator) { try { const offer = await pc.createOffer(); await pc.setLocalDescription(offer); room.send('voice:signal', { to: peerId, type: 'offer', data: offer }); log('Sent offer to ' + peerId, 'success'); } catch (e) { log('Offer error ' + e.message, 'error'); } } }
+    async function setupPeerConnection(peerId) { 
+      if (peerConnections.has(peerId) || !localStream) return; 
+      console.log('创建对等连接', { peerId, hasLocalStream: !!localStream, existingPeers: peerConnections.size });
+      log('Create peer ' + peerId); 
+      const pc = new RTCPeerConnection(rtcConfig); 
+      peerConnections.set(peerId, pc); 
+      localStream.getTracks().forEach(t => pc.addTrack(t, localStream)); 
+      pc.ontrack = (ev) => { 
+        console.log('接收到远程音轨', { peerId, streams: ev.streams.length });
+        log('Remote track from ' + peerId, 'success'); 
+        const audio = document.createElement('audio'); 
+        audio.autoplay = true; 
+        audio.srcObject = ev.streams[0]; 
+        document.body.appendChild(audio); 
+        pc.remoteAudio = audio; 
+        attachRemoteTrack(ev.streams[0]); 
+        attachRemotePeerTrack(peerId, ev.streams[0]); 
+      }; 
+      pc.onicecandidate = (ev) => { 
+        if (ev.candidate) {
+          console.log('发送ICE候选', { peerId, candidate: ev.candidate });
+          room.send('voice:signal', { to: peerId, type: 'ice-candidate', data: ev.candidate.toJSON() }); 
+        }
+      }; 
+      pc.onconnectionstatechange = () => { 
+        console.log('对等连接状态变化', { peerId, state: pc.connectionState });
+        log('PC state ' + peerId + ': ' + pc.connectionState); 
+        if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) closePeerConnection(peerId); 
+      }; 
+      const initiator = room.sessionId < peerId; 
+      if (initiator) { 
+        try { 
+          console.log('创建offer', { peerId, initiator });
+          const offer = await pc.createOffer(); 
+          await pc.setLocalDescription(offer); 
+          room.send('voice:signal', { to: peerId, type: 'offer', data: offer }); 
+          log('Sent offer to ' + peerId, 'success'); 
+        } catch (e) { 
+          console.error('创建offer错误', { peerId, error: e.message });
+          log('Offer error ' + e.message, 'error'); 
+        } 
+      } 
+    }
 
     async function handleSignal(msg) {
       const { from, type, data } = msg; let pc = peerConnections.get(from); const initiator = room.sessionId < from; if (type === 'offer') {
@@ -558,11 +857,49 @@
 
     function closePeerConnection(peerId) { const pc = peerConnections.get(peerId); if (!pc) return; if (pc.remoteAudio) { pc.remoteAudio.srcObject = null; pc.remoteAudio.remove(); } pc.close(); peerConnections.delete(peerId); remoteAnalysers.delete(peerId); if (speakingPeers.delete(peerId)) updateChannelDisplay(); log('Closed peer ' + peerId); updateMyStatus(); }
 
-    function joinGlobal() { if (room) { room.send('voice:join', { channelId: 'global' }); log('Join global'); } }
+    function joinGlobal() { 
+      if (room) { 
+        console.log('加入全局语音频道', { sessionId: room.sessionId, roomId: room.id });
+        room.send('voice:join', { channelId: 'global' }); 
+        log('Join global'); 
+      } 
+    }
     function createTeam() { if (!room) return; const name = document.getElementById('new-channel-name').value.trim() || 'Team_' + Math.floor(Math.random() * 1000); room.send('voice:create', { name, type: 'group', maxMembers: 12 }); log('Create channel ' + name); }
-    function leaveVoice() { if (!room) return; peerConnections.forEach((_, id) => closePeerConnection(id)); peerConnections.clear(); room.send('voice:leave'); if (activeProvider && activeProvider.name === 'agora') { activeProvider.leaveChannel?.(); } log('Left channel'); }
-    function toggleMute() { isMuted = !isMuted; if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted); if (activeProvider && activeProvider.name === 'agora') { activeProvider.setMute?.(isMuted); } if (room) room.send('voice:mute', { muted: isMuted }); log('Muted=' + isMuted); updateMyStatus(); }
-    function toggleDeafen() { isDeafened = !isDeafened; peerConnections.forEach(pc => { if (pc.remoteAudio) pc.remoteAudio.muted = isDeafened; }); if (activeProvider && activeProvider.name === 'agora') { activeProvider.setDeafen?.(isDeafened); } if (room) room.send('voice:deafen', { deafened: isDeafened }); log('Deafened=' + isDeafened); updateMyStatus(); }
+    function leaveVoice() {
+      console.log('离开语音频道', { 
+        sessionId: room.sessionId, 
+        peerConnections: peerConnections.size,
+        activeProvider: activeProvider ? activeProvider.name : '无'
+      });
+      if (!room) return;
+      peerConnections.forEach((_, id) => closePeerConnection(id));
+      peerConnections.clear();
+      room.send('voice:leave');
+      if (activeProvider && (activeProvider.name === 'agora' || activeProvider.name === 'tencent')) {
+        activeProvider.leaveChannel?.();
+      }
+      log('Left channel');
+    }
+    function toggleMute() {
+      isMuted = !isMuted;
+      if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+      if (activeProvider && (activeProvider.name === 'agora' || activeProvider.name === 'tencent')) {
+        activeProvider.setMute?.(isMuted);
+      }
+      if (room) room.send('voice:mute', { muted: isMuted });
+      log('Muted=' + isMuted);
+      updateMyStatus();
+    }
+    function toggleDeafen() {
+      isDeafened = !isDeafened;
+      peerConnections.forEach(pc => { if (pc.remoteAudio) pc.remoteAudio.muted = isDeafened; });
+      if (activeProvider && (activeProvider.name === 'agora' || activeProvider.name === 'tencent')) {
+        activeProvider.setDeafen?.(isDeafened);
+      }
+      if (room) room.send('voice:deafen', { deafened: isDeafened });
+      log('Deafened=' + isDeafened);
+      updateMyStatus();
+    }
 
     function startStatsLoop() { if (statsInterval) return; statsInterval = setInterval(async () => { try { let lines = []; for (const [id, pc] of peerConnections) { const stats = await pc.getStats(); let audioIn = 0, audioOut = 0, rtt = '-', packetsLost = '-'; stats.forEach(r => { if (r.type === 'inbound-rtp' && r.kind === 'audio') { audioIn = r.bytesReceived; packetsLost = r.packetsLost; rtt = r.roundTripTime || r.totalRoundTripTime || '-'; } if (r.type === 'outbound-rtp' && r.kind === 'audio') { audioOut = r.bytesSent; } }); lines.push(`${id.substr(0, 6)} in:${(audioIn / 1024).toFixed(1)}KB out:${(audioOut / 1024).toFixed(1)}KB rtt:${rtt} lost:${packetsLost}`); } document.getElementById('rtc-stats').textContent = 'Stats: ' + (lines.length ? lines.join(' | ') : '-'); } catch (_) { } }, 1500); }
 
@@ -573,3 +910,126 @@
 </body>
 
 </html>
+    // 增强日志功能 - 添加到文件末尾
+    function logEnhanced(operation, details, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const sessionId = room?.sessionId ? room.sessionId.substring(0, 8) : 'no-session';
+      const roomId = room?.id ? room.id.substring(0, 8) : 'no-room';
+      
+      let detailStr;
+      try {
+        detailStr = typeof details === 'object' ? JSON.stringify(details, null, 2) : String(details);
+      } catch (e) {
+        detailStr = '[无法序列化对象]';
+      }
+      
+      const message = `[${timestamp}] [${sessionId}] [${roomId}] ${operation}\n${detailStr}`;
+      
+      const logDiv = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.style.whiteSpace = 'pre-wrap';
+      entry.style.fontFamily = 'monospace';
+      entry.style.fontSize = '10px';
+      entry.textContent = message;
+      logDiv.appendChild(entry);
+      logDiv.scrollTop = logDiv.scrollHeight;
+      
+      console[type === 'error' ? 'error' : 'log'](`[${operation}]`, details);
+    }
+
+    // 在关键函数中添加详细日志
+    function logConnectionDetails() {
+      if (room) {
+        logEnhanced('连接状态详情', {
+          sessionId: room.sessionId,
+          roomId: room.id,
+          state: room.state ? '已同步' : '未同步',
+          connectionState: room.connection ? room.connection.readyState : '未知'
+        }, 'info');
+      }
+    }
+
+    function logVoiceState() {
+      logEnhanced('语音状态详情', {
+        isMuted: isMuted,
+        isDeafened: isDeafened,
+        localStream: localStream ? '已初始化' : '未初始化',
+        audioContext: audioContext ? '已创建' : '未创建',
+        peerConnections: peerConnections.size,
+        activeProvider: activeProvider ? activeProvider.name : '无'
+      }, 'info');
+    }
+    // 测试日志功能
+    function testLogging() {
+      console.log('=== 测试日志功能开始 ===');
+      log('普通日志测试', 'info');
+      log('错误日志测试', 'error');
+      log('成功日志测试', 'success');
+      
+      // 测试增强日志
+      if (typeof logEnhanced === 'function') {
+        logEnhanced('增强日志测试', {
+          testData: '测试数据',
+          timestamp: new Date().toISOString(),
+          roomInfo: room ? {
+            id: room.id,
+            sessionId: room.sessionId
+          } : '未连接'
+        }, 'info');
+      }
+      
+      console.log('=== 测试日志功能结束 ===');
+    }
+
+    function testConnectionDetails() {
+      if (typeof logConnectionDetails === 'function') {
+        logConnectionDetails();
+        autoLogConnectionState();
+      } else {
+        console.log('连接详情测试:', {
+          sessionId: room?.sessionId,
+          roomId: room?.id,
+          connectionState: room?.connection?.readyState,
+          stateKeys: room?.state ? Object.keys(room.state) : []
+        });
+      }
+    }
+
+    function testVoiceState() {
+      if (typeof logVoiceState === 'function') {
+        logVoiceState();
+      } else {
+        console.log('语音状态测试:', {
+          isMuted: isMuted,
+          isDeafened: isDeafened,
+          localStream: !!localStream,
+          audioContext: !!audioContext,
+          peerConnections: peerConnections.size,
+          activeProvider: activeProvider?.name
+        });
+      }
+    }
+
+    function clearLogs() {
+      const logDiv = document.getElementById('log');
+      if (logDiv) {
+        logDiv.innerHTML = '';
+        console.log('日志已清空');
+      }
+    }
+
+    // 在连接成功后自动记录详细状态
+    function autoLogConnectionState() {
+      if (room) {
+        setTimeout(() => {
+          console.log('自动连接状态记录:', {
+            sessionId: room.sessionId,
+            roomId: room.id,
+            state: room.state ? '已同步' : '未同步',
+            voiceChannels: room.state?.voiceChannels ? room.state.voiceChannels.size : 0,
+            players: room.state?.players ? room.state.players.size : 0
+          });
+        }, 1000);
+      }
+    }

@@ -3,6 +3,7 @@ import { Entity } from '../entities';
 import { Skill } from '../schemas/MyRoomState';
 import { configManager } from '../config/configManager';
 import { SkillsConfig, SkillConfig, SkillEffect } from '../config/skillConfig';
+import { MonsterState } from '../config/monsterConfig';
 import * as prom from '../instrumentation/prometheusMetrics';
 
 /**
@@ -125,7 +126,7 @@ function applySkillEffect(caster: Entity, skill: Skill, target?: Entity): void {
  */
 function applyEffect(caster: Entity, effect: SkillEffect, target: Entity | undefined, skillConfig: SkillConfig): void {
   const effectTarget = getEffectTarget(caster, target, effect.target);
-  if (!effectTarget || !effectTarget.player) return;
+  if (!effectTarget) return;
 
   switch (effect.type) {
     case 'damage':
@@ -138,9 +139,29 @@ function applyEffect(caster: Entity, effect: SkillEffect, target: Entity | undef
           damage += statValue * effect.scaling.multiplier;
         }
         
-        effectTarget.player.health = Math.max(0, effectTarget.player.health - damage);
-        caster.player.damageDealt += damage;
-        effectTarget.player.damageTaken += damage;
+        // Apply damage to player or monster
+        if (effectTarget.monster) {
+          // Damage to monster
+          effectTarget.monster.health = Math.max(0, effectTarget.monster.health - damage);
+          caster.player.damageDealt += damage;
+          
+          // Check if monster is dead
+          if (effectTarget.monster.health <= 0) {
+            effectTarget.monster.state = MonsterState.DEAD;
+            effectTarget.monster.deathTime = Date.now();
+          }
+        } else if (effectTarget.player) {
+          // Damage to player
+          effectTarget.player.health = Math.max(0, effectTarget.player.health - damage);
+          caster.player.damageDealt += damage;
+          effectTarget.player.damageTaken += damage;
+          
+          // Check if player is dead
+          if (effectTarget.player.health <= 0) {
+            effectTarget.player.health = 0;
+            // TODO: Handle player death (respawn, drop items, etc.)
+          }
+        }
         
         // Record damage in Prometheus
         prom.recordDamage(skillConfig.id, damage);
@@ -148,6 +169,7 @@ function applyEffect(caster: Entity, effect: SkillEffect, target: Entity | undef
       break;
       
     case 'heal':
+      if (!effectTarget.player) return;
       const healAmount = effect.value || 0;
       effectTarget.player.health = Math.min(
         effectTarget.player.maxHealth,

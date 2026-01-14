@@ -8,7 +8,11 @@
     "build": "tsc",
     "test": "jest",
     "schema-codegen": "npx schema-codegen src/schemas/* --ts --output client/src/states/",
-    "profile:cpu": "node -e \"(async()=>{const {captureCPUProfile}=require('./build/instrumentation/profiler');const d=process.env.D||5000;const f=await captureCPUProfile(d);console.log('CPU profile saved:',f)})()\""
+    "schema-codegen-external": "npx schema-codegen src/schemas/GlobalRoomState.ts --ts --output \"E:\\git\\danmuxiuxian\\frontend\\assets\\Script\\Net\\colyseusState\"",
+    "profile:cpu": "node -e \"(async()=>{const {captureCPUProfile}=require('./build/instrumentation/profiler');const d=process.env.D||5000;const f=await captureCPUProfile(d);console.log('CPU profile saved:',f)})()\"",
+    "flatc-codegen": "flatc --ts  --ts-omit-entrypoint -o ./src/schemas/flatc/ ./src/schemas/flatc/GlobalRoomState.fbs",
+    "flatc-codegen-external": "flatc --ts  --ts-omit-entrypoint -o \"E:/git/danmuxiuxian/frontend/assets/Script/Net/schema/flatc/\" ./src/schemas/flatc/GlobalRoomState.fbs",
+    "map:validate": "ts-node tools/map-validate.ts"
   },
   "keywords": [],
   "author": "",
@@ -31,10 +35,16 @@
     "@opentelemetry/resources": "^2.1.0",
     "@opentelemetry/sdk-node": "^0.206.0",
     "@opentelemetry/semantic-conventions": "^1.37.0",
+    "@timohausmann/quadtree-ts": "^2.2.2",
+    "@types/morgan": "^1.9.10",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
+    "flatbuffers": "^25.9.23",
     "miniplex": "^2.0.0",
-    "prom-client": "^15.1.3"
+    "morgan": "^1.10.1",
+    "prom-client": "^15.1.3",
+    "winston": "^3.18.3",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "@colyseus/loadtest": "^0.16.0",
@@ -46,10 +56,12 @@
     "@types/node": "^24.5.2",
     "@types/supertest": "^6.0.3",
     "jest": "^30.2.0",
+    "source-map-support": "^0.5.21",
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.4",
     "tsc-watch": "^7.2.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "ts-node": "^10.9.2"
   },
   "resolutions": {
     "@colyseus/schema": "^3.0.0"

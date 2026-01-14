@@ -8,8 +8,7 @@ import { MyRoomState, Player } from '../schemas/MyRoomState';
 import { Monster } from '../schemas/Monster';
 import { MonsterState } from '../config/monsterConfig';
 import { achievementSystem, initializeAchievements } from '../systems/achievementSystem';
-import { ChatManager } from '../systems/chatSystem';
-import { combatSystem, regenerationSystem } from '../systems/combatSystem';
+import { combatSystem, regenerationSystem, performBasicAttack } from '../systems/combatSystem';
 import { inputSystem } from '../systems/inputSystem';
 import { LeaderboardManager } from '../systems/leaderboardSystem';
 import { movementSystem, setWorldBounds } from '../systems/movementSystem';
@@ -19,6 +18,13 @@ import { syncSystem } from '../systems/syncSystem';
 import { VoiceChannelManager } from '../systems/voiceChannelSystem';
 import { RateLimiter, InputValidator } from '../utils/security';
 import { monsterAISystem, initializeMonsterSystem } from '../systems/monsterAI';
+import { 
+  initializeSpatialSystem, 
+  spatialSystem, 
+  addToSpatialSystem, 
+  removeFromSpatialSystem,
+  disposeSpatialSystem 
+} from '../systems/spatialPartitioningSystem';
 
 
 export class MyRoom extends Room<MyRoomState> {
@@ -31,14 +37,20 @@ export class MyRoom extends Room<MyRoomState> {
   
   // New systems
   private leaderboardManager = new LeaderboardManager();
-  private chatManager = new ChatManager();
   private voiceChannelManager = new VoiceChannelManager();
   private actionRateLimiter = new RateLimiter(20, 5); // 20 actions, 5 per second
-  private chatRateLimiter = new RateLimiter(10, 1); // 10 messages, 1 per second
 
 
   onCreate(options: any) {
     this.state = new MyRoomState();
+    
+    // Initialize spatial partitioning system
+    initializeSpatialSystem({
+      worldWidth: this.state.worldWidth,
+      worldHeight: this.state.worldHeight,
+      maxObjects: 10,
+      maxLevels: 4
+    });
     
     // Initialize configuration-based systems
     initializeSkillSystem();
@@ -55,7 +67,7 @@ export class MyRoom extends Room<MyRoomState> {
       const x = Math.random() * this.state.worldWidth;
       const y = Math.random() * this.state.worldHeight;
       const level = 1 + Math.floor(Math.random() * 3);
-      this.world.add({
+      const entity = this.world.add({
         position: { x, y },
         velocity: { x: 0, y: 0 },
   player: new Player(),
@@ -74,6 +86,9 @@ export class MyRoom extends Room<MyRoomState> {
           deathTime: 0
         }
       });
+      
+      // Add monster to spatial partitioning system
+      addToSpatialSystem(`monster_${i}`, entity, 'monster');
     }
     
     // Initialize voice channels
@@ -107,6 +122,9 @@ export class MyRoom extends Room<MyRoomState> {
       // Core systems
       inputSystem(this.world, this.entityCommandMap, this.entityByClient);
       movementSystem(this.world);
+      
+      // Update spatial partitioning after movement
+      spatialSystem(this.world);
 
       // Combat and skills
       combatSystem(this.world, deltaTime);
@@ -114,7 +132,7 @@ export class MyRoom extends Room<MyRoomState> {
       skillSystem(this.world);
       buffSystem(this.world);
 
-      // Monster AI
+      // Monster AI (uses spatial queries via getSpatialSystem)
       monsterAISystem(this.world, deltaTime);
 
       // Quest and achievement systems
@@ -197,8 +215,6 @@ export class MyRoom extends Room<MyRoomState> {
       // Periodic cleanup (every 100 ticks ~10 seconds at ENV.TICK_RATE=10)
       if (tickCount % 100 === 0) {
         this.actionRateLimiter.cleanup();
-        this.chatRateLimiter.cleanup();
-        this.chatManager.cleanupRateLimits();
         this.voiceChannelManager.cleanup();
       }
     };
@@ -258,54 +274,95 @@ export class MyRoom extends Room<MyRoomState> {
       recordMessage(this.roomId, 'attack');
       
       const attacker = this.entityByClient.get(client.sessionId);
-      const target = this.entityByClient.get(message.targetId);
+      if (!attacker) return;
       
-      if (!attacker || !target) return;
+      // Try to find target: first check players, then check monsters
+      let target = this.entityByClient.get(message.targetId);
+      
+      // If not a player, search for monster by matching ID in world
+      if (!target) {
+        const monsters = this.world.where(e => e.monster !== undefined);
+        for (const entity of monsters) {
+          const m = entity.monster;
+          if (!m || m.state === 'dead') continue;
+          const monsterId = String(entity.id ?? `${m.type}_${m.spawnPoint.x}_${m.spawnPoint.y}`);
+          if (monsterId === message.targetId) {
+            target = entity;
+            break;
+          }
+        }
+      }
+      
+      if (!target) {
+        console.log(`[Attack] Target not found: ${message.targetId}`);
+        return;
+      }
       
       // Set combat target
       attacker.combatTarget = target;
       attacker.player.inCombat = true;
       attacker.player.targetId = message.targetId;
       
-      // Use skill if specified
+      // If skillId is specified, use skill; otherwise perform basic attack
       if (message.skillId) {
-        const beforeTargetHealth = target.player.health;
+        // Get health before skill for both player and monster targets
+        const beforeTargetHealth = target.player?.health ?? target.monster?.health ?? 0;
         const beforeCasterHealth = attacker.player.health;
+        
         const success = useSkill(attacker, message.skillId, target);
         if (success) {
+          // Get health after skill
+          const afterTargetHealth = target.player?.health ?? target.monster?.health ?? 0;
+          
+          // Get target position (player or monster)
+          const targetPos = target.player
+            ? { x: target.player.x, y: target.player.y }
+            : target.position
+              ? { x: target.position.x, y: target.position.y }
+              : { x: 0, y: 0 };
+          
           // Broadcast cast event (fire-and-forget visual hint for clients)
-            this.broadcast('skill_cast', {
-              casterId: client.sessionId,
-              skillId: message.skillId,
-              targetId: message.targetId,
-              from: { x: attacker.player.x, y: attacker.player.y },
-              to: { x: target.player.x, y: target.player.y },
-              // simple delta hints (optional)
-              targetHealthDelta: target.player.health - beforeTargetHealth,
-              casterHealthDelta: attacker.player.health - beforeCasterHealth,
-              serverTime: Date.now()
-            });
+          this.broadcast('skill_cast', {
+            casterId: client.sessionId,
+            skillId: message.skillId,
+            targetId: message.targetId,
+            from: { x: attacker.player.x, y: attacker.player.y },
+            to: targetPos,
+            // simple delta hints (optional)
+            targetHealthDelta: afterTargetHealth - beforeTargetHealth,
+            casterHealthDelta: attacker.player.health - beforeCasterHealth,
+            serverTime: Date.now()
+          });
+        }
+      } else {
+        // Perform basic attack (普攻)
+        const beforeTargetHealth = target.player?.health ?? target.monster?.health ?? 0;
+        const success = performBasicAttack(attacker, target);
+        
+        if (success) {
+          // Get health after attack
+          const afterTargetHealth = target.player?.health ?? target.monster?.health ?? 0;
+          
+          // Get target position (player or monster)
+          const targetPos = target.player
+            ? { x: target.player.x, y: target.player.y }
+            : target.position
+              ? { x: target.position.x, y: target.position.y }
+              : { x: 0, y: 0 };
+          
+          // Broadcast basic attack event
+          this.broadcast('basic_attack', {
+            attackerId: client.sessionId,
+            targetId: message.targetId,
+            from: { x: attacker.player.x, y: attacker.player.y },
+            to: targetPos,
+            damage: beforeTargetHealth - afterTargetHealth,
+            serverTime: Date.now()
+          });
         }
       }
     });
     
-    // Chat
-    this.onMessage("chat", (client, message: { message: string; channel?: string }) => {
-      if (!this.chatRateLimiter.checkLimit(client.sessionId)) return;
-      
-      recordMessage(this.roomId, 'chat');
-      
-      const entity = this.entityByClient.get(client.sessionId);
-      if (!entity) return;
-      
-      this.chatManager.addMessage(
-        this.state.chatMessages,
-        client.sessionId,
-        entity.player.name,
-        message.message,
-        message.channel || 'global'
-      );
-    });
     
     // Quest management
     this.onMessage("quest", (client, message: { questId: string; action: string }) => {
@@ -484,6 +541,9 @@ export class MyRoom extends Room<MyRoomState> {
 
     this.entityByClient.set(client.sessionId, entity);
     
+    // Add player to spatial partitioning system
+    addToSpatialSystem(client.sessionId, entity, 'player');
+    
     // Record player join in metrics
     recordPlayerJoin(this.roomId);
   }
@@ -501,6 +561,9 @@ export class MyRoom extends Room<MyRoomState> {
         client.sessionId
       );
     }
+    
+    // Remove from spatial partitioning system
+    removeFromSpatialSystem(client.sessionId);
 
     this.state.players.delete(client.sessionId);
 
@@ -517,5 +580,8 @@ export class MyRoom extends Room<MyRoomState> {
   onDispose() {
     console.log('room', this.roomId, 'disposing...');
     unregisterRoom(this.roomId);
+    
+    // Dispose spatial system
+    disposeSpatialSystem();
   }
 }

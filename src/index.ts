@@ -1,7 +1,9 @@
+import 'source-map-support/register';
 import config from './app.config';
 import { listen } from '@colyseus/tools';
 import { Encoder } from "@colyseus/schema";
 import { ENV } from './config/env';
+import { loggerService } from './services/loggerService';
 
 // Dynamic sizing strategy ----------------------------------------------------
 // If SCHEMA_BUFFER_SIZE provided, use it directly.
@@ -29,7 +31,12 @@ if (ENV.SCHEMA_BUFFER_SIZE && ENV.SCHEMA_BUFFER_SIZE > 0) {
 	if (bufferSize > maxAllowed) bufferSize = maxAllowed;
 }
 Encoder.BUFFER_SIZE = bufferSize;
-console.log(`[schema] Encoder.BUFFER_SIZE initialized to ${Encoder.BUFFER_SIZE} bytes (max=${maxAllowed})`);
+loggerService.info(`Encoder.BUFFER_SIZE initialized to ${Encoder.BUFFER_SIZE} bytes (max=${maxAllowed})`, { module: 'schema' });
+// Enable detailed logging
+loggerService.info(`Starting server with environment: ${process.env.NODE_ENV || 'development'}`, { module: 'server' });
+loggerService.info(`Port: ${process.env.PORT || 2567}`, { module: 'server' });
+loggerService.info(`Redis URL: ${process.env.REDIS_URL || 'Not configured'}`, { module: 'server' });
+loggerService.info(`Schema buffer size: ${Encoder.BUFFER_SIZE}`, { module: 'server' });
 
 // Auto-scale & near-limit warning patch -------------------------------------
 try {
@@ -42,14 +49,14 @@ try {
 				// If internal offset available, warn when > 80% capacity
 				const used = (this as any).offset || (this as any).cursor || undefined;
 				if (typeof used === 'number' && used > Encoder.BUFFER_SIZE * 0.8) {
-					console.warn(`[schema] warning: encoded size ${used}B > 80% (${(100*used/Encoder.BUFFER_SIZE).toFixed(1)}%) of BUFFER_SIZE=${Encoder.BUFFER_SIZE}. Consider increasing.`);
+					loggerService.warn(`encoded size ${used}B > 80% (${(100*used/Encoder.BUFFER_SIZE).toFixed(1)}%) of BUFFER_SIZE=${Encoder.BUFFER_SIZE}. Consider increasing.`, { module: 'schema', used, bufferSize: Encoder.BUFFER_SIZE });
 				}
 				return result;
 			} catch (e: any) {
 				if (e && /buffer overflow/i.test(e.message)) {
 					const newSize = Math.min(Encoder.BUFFER_SIZE * 2, maxAllowed);
 					if (newSize !== Encoder.BUFFER_SIZE) {
-						console.warn(`[schema] buffer overflow; increasing BUFFER_SIZE from ${Encoder.BUFFER_SIZE} -> ${newSize}`);
+						loggerService.warn(`buffer overflow; increasing BUFFER_SIZE from ${Encoder.BUFFER_SIZE} -> ${newSize}`, { module: 'schema', oldSize: Encoder.BUFFER_SIZE, newSize });
 						Encoder.BUFFER_SIZE = newSize;
 						return original.apply(this, args); // retry once
 					}
@@ -60,7 +67,50 @@ try {
 		proto.__autoScalePatched = true;
 	}
 } catch (err) {
-	console.warn('[schema] auto-scale patch failed:', err);
+	loggerService.error('auto-scale patch failed', err as Error, { module: 'schema' });
 }
 
-listen(config);
+// Startup cleanup: Remove stale nodes from previous runs with same processId
+async function cleanupStaleNodes() {
+	if (!process.env.REDIS_URL) return;
+	
+	try {
+		const Redis = require('ioredis');
+		const redis = new Redis(process.env.REDIS_URL);
+		const nodes = await redis.smembers('colyseus:nodes');
+		const currentHost = process.env.SELF_HOSTNAME || 'localhost';
+		const currentPort = process.env.SELF_PORT || process.env.PORT || 2567;
+		
+		// Remove nodes that match current host:port (from previous crashed instances)
+		for (const node of nodes) {
+			if (node.includes(`${currentHost}:${currentPort}`)) {
+				await redis.srem('colyseus:nodes', node);
+				loggerService.info(`Removed stale node: ${node}`, { module: 'startup' });
+			}
+		}
+		
+		await redis.quit();
+	} catch (err) {
+		loggerService.error('Failed to cleanup stale nodes', err as Error, { module: 'startup' });
+	}
+}
+
+// Start server
+(async () => {
+	await cleanupStaleNodes();
+	const gameServer = await listen(config);
+	
+	// Register shutdown callbacks (executed by Colyseus gracefullyShutdown)
+	gameServer.onBeforeShutdown(async () => {
+		loggerService.info('Preparing to shutdown...', { module: 'shutdown' });
+		// Add any pre-shutdown logic here (e.g., save state, notify services)
+	});
+	
+	gameServer.onShutdown(async () => {
+		loggerService.info('Server shutdown complete', { module: 'shutdown' });
+		// Add any post-shutdown logic here
+	});
+	
+	loggerService.info('Server started successfully', { module: 'startup' });
+	loggerService.info('Press Ctrl+C to shutdown gracefully', { module: 'startup' });
+})();

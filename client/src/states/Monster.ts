@@ -1,16 +1,24 @@
-import { Schema, type } from '@colyseus/schema';
+// 
+// THIS FILE HAS BEEN GENERATED AUTOMATICALLY
+// DO NOT CHANGE IT MANUALLY UNLESS YOU KNOW WHAT YOU'RE DOING
+// 
+// GENERATED USING @colyseus/schema 3.0.62
+// 
+
+import { Schema, type, ArraySchema, MapSchema, SetSchema, DataChange } from '@colyseus/schema';
+
 
 export class Monster extends Schema {
-    @type("string") public id: string = "";
-    @type("string") public type: string = "";
-    @type("number") public x: number = 0;
-    @type("number") public y: number = 0;
-    @type("number") public health: number = 100;
-    @type("number") public maxHealth: number = 100;
-    @type("number") public mana: number = 0;
-    @type("number") public maxMana: number = 0;
-    @type("number") public level: number = 1;
-    @type("string") public state: string = "idle";
-    @type("number") public stateStartTime: number = 0;
-    @type("string") public targetId: string = "";
+    @type("string") public id!: string;
+    @type("string") public type!: string;
+    @type("number") public x!: number;
+    @type("number") public y!: number;
+    @type("number") public health!: number;
+    @type("number") public maxHealth!: number;
+    @type("number") public mana!: number;
+    @type("number") public maxMana!: number;
+    @type("number") public level!: number;
+    @type("string") public state!: string;
+    @type("number") public stateStartTime!: number;
+    @type("string") public targetId!: string;
 }

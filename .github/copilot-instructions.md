@@ -3,179 +3,207 @@
 ## Project Overview
 
 This is a production-ready Colyseus MMO server built with TypeScript, featuring:
-- **Colyseus Framework**: Real-time multiplayer game server
-- **ECS Architecture**: Entity Component System using Miniplex
-- **uWebSockets Transport**: High-performance WebSocket implementation
-- **Redis-ready**: Configuration for horizontal scaling with Redis presence/driver
-- **Performance Monitoring**: Custom metrics, profiling, and Prometheus integration
-- **Frontend Client**: Vite + Pixi.js based client in the `client/` directory
+- **Colyseus Framework**: Real-time multiplayer game server with multiple room types
+- **ECS Architecture**: Entity Component System using Miniplex v2.x
+- **uWebSockets Transport**: High-performance WebSocket implementation  
+- **Redis-ready**: Horizontal scaling with Redis presence/driver (configurable via `REDIS_URL`)
+- **Performance Monitoring**: Custom metrics, Prometheus integration, CPU/heap profiling
+- **Full Game Systems**: Combat, skills, quests, achievements, voice chat, spatial partitioning
+- **Frontend Client**: Complete Vite + Pixi.js MMO client with 8 UI panels
 
 ## Architecture & Patterns
 
-### Directory Structure
+### Core Directory Structure
 
-- `src/rooms/`: Room definitions (game logic containers)
-- `src/schemas/`: State schema definitions using Colyseus Schema
-- `src/entities/`: ECS entity definitions
-- `src/systems/`: ECS system implementations (game logic)
-- `src/instrumentation/`: Metrics and profiling utilities
-- `client/`: Frontend client application
-  - `client/src/`: TypeScript source files
-  - `client/dist/`: Built client files
-  - `client/src/command/`: Load testing and mock client tools
+- `src/rooms/`: Room definitions (`MyRoom.ts`, `CellRoom.ts`, `ChatRoom.ts`)
+- `src/schemas/`: Colyseus Schema state definitions with `@type()` decorators
+- `src/entities/`: ECS entity type definitions (`Entity`, commands)
+- `src/systems/`: ECS system implementations (pure functions taking `World<Entity>`)
+- `src/instrumentation/`: Metrics collection, profiling endpoints
+- `src/services/`: External integrations (Agora, Tencent voice providers)
+- `src/analytics/`: Player analytics and retention tracking
+- `src/tickets/`: Customer support ticket system
+- `client/`: Complete MMO client with mock testing tools
 
 ### Key Technologies
 
-- **Runtime**: Node.js with TypeScript
-- **Framework**: Colyseus v0.16.x
-- **ECS**: Miniplex v2.x
-- **Transport**: uWebSockets
-- **State Management**: @colyseus/schema
-- **Testing**: Jest with @colyseus/testing
-- **Frontend**: Vite, Pixi.js, colyseus.js client
+- **Runtime**: Node.js with TypeScript, CommonJS modules
+- **Framework**: Colyseus v0.16.x with uWebSockets transport
+- **ECS**: Miniplex v2.x for entity queries and world management
+- **State**: @colyseus/schema v3.x for network synchronization
+- **Testing**: Jest with @colyseus/testing for integration tests
+- **Frontend**: Vite + Pixi.js + colyseus.js client
 
 ### Code Style & Conventions
 
-1. **TypeScript Usage**: 
-   - Use strict TypeScript types
-   - Avoid `any` types when possible
-   - Use interfaces for public APIs
+1. **TypeScript Configuration**: 
+   - Target ES2020, CommonJS modules, strict mode enabled
+   - Experimental decorators for Colyseus Schema (`@type()`)
+   - Output to `build/` directory, source in `src/`
 
 2. **ECS Patterns**:
-   - Entities are defined in `src/entities/`
-   - Systems process entities and are in `src/systems/`
-   - Keep systems pure and focused on single responsibilities
-   - Use Miniplex queries for entity filtering
+   - Entities defined as TypeScript types in `src/entities/index.ts` with optional components
+   - Systems are pure functions: `(world: World<Entity>) => void`
+   - Use `world.with('component1', 'component2')` for entity filtering
+   - Keep systems focused on single responsibilities
 
 3. **Room Lifecycle**:
-   - `onCreate()`: Initialize room state and systems
-   - `onJoin()`: Handle player joining
-   - `onLeave()`: Clean up player data
-   - `onDispose()`: Clean up room resources
+   - `onCreate()`: Initialize state, systems, world bounds, register metrics
+   - `onJoin()`: Create entity, add to spatial system, grant starter items
+   - `onLeave()`: Clean entity, remove from spatial system, update leaderboard
+   - `onDispose()`: Clean up world, unregister metrics, dispose spatial system
 
 4. **State Schema**:
-   - Use `@type()` decorators for synchronized properties
-   - Keep state minimal and optimized for network sync
-   - State changes trigger automatic client updates
+   - Use `@type()` decorators for network-synchronized properties
+   - Run `yarn schema-codegen` after schema changes to generate client types
+   - State changes automatically trigger client patches
 
-5. **Metrics & Monitoring**:
-   - Record important events using functions from `src/instrumentation/metrics.ts`
-   - Use `recordTick()`, `recordMessage()`, `recordPatch()` for performance tracking
-   - Enable slow tick profiling for optimization
+5. **Message Handling**:
+   - All messages rate-limited via `actionRateLimiter.attempt(sessionId)`
+   - Use `InputValidator.sanitizeString()` for text input
+   - Record metrics with `recordMessage(roomId, messageType)`
 
-## Common Tasks
+6. **Spatial System Integration**:
+   - Call `addToSpatialSystem(entity)` on entity creation
+   - Call `removeFromSpatialSystem(entityId)` on entity removal
+   - Spatial queries enable efficient collision detection and area-of-effect
 
-### Adding a New System
+## Critical Development Workflows
 
-1. Create a new file in `src/systems/` (e.g., `mySystem.ts`)
-2. Export a function that takes `World<Entity>` as parameter
-3. Use world queries to filter and process relevant entities
-4. Register the system in the room's `onCreate()` tick loop
+### Build & Development Commands
 
-Example:
+```bash
+# Development with live reload
+yarn dev                    # tsc-watch + node restart
+
+# Production build  
+yarn build                 # TypeScript compilation to build/
+yarn start                 # Start production server
+
+# Schema generation (CRITICAL after schema changes)
+yarn schema-codegen        # Generate client state classes
+yarn schema-codegen-external  # For external Unity project
+
+# Testing
+yarn test                  # Jest test suite
+```
+
+### Load Testing & Profiling
+
+```bash
+# Build mock clients first
+cd client && yarn build:mock
+
+# Spawn mock clients (adjust count)
+node client/dist/command/spawn-mock.js --count 200 --interval 1000
+
+# CPU profiling (production environment)
+curl -X POST "http://localhost:2567/profile/cpu?durationMs=10000"
+# Output: profiles/cpu-{timestamp}-{duration}.cpuprofile
+
+# Heap snapshots
+curl -X POST http://localhost:2567/profile/heap
+
+# View profiles: Chrome DevTools > Performance > Load Profile
+# Or https://speedscope.app for interactive flame graphs
+```
+
+### Metrics Monitoring
+
+- **JSON Metrics**: `GET /metrics.json` - Structured room metrics, tick performance
+- **Prometheus**: `GET /metrics` - Standard Prometheus exposition format  
+- **Analytics**: `GET /analytics` - Player behavior, retention, economy data
+
+## System-Specific Implementation Patterns
+
+### Adding New ECS Systems
+
+1. Create function in `src/systems/mySystem.ts`:
 ```typescript
 import { World } from 'miniplex';
 import { Entity } from '../entities';
 
 export function mySystem(world: World<Entity>) {
-  // Query entities with specific components
-  const entities = world.where(e => e.myComponent !== undefined);
-  
+  const entities = world.with('position', 'myComponent');
   entities.forEach(entity => {
-    // Process entity
+    // Process entity logic
   });
 }
 ```
 
-### Adding New State Properties
-
-1. Update the schema in `src/schemas/MyRoomState.ts`
-2. Add `@type()` decorator for network synchronization
-3. Run `yarn schema-codegen` to generate client-side state classes
-4. Update client code to listen for state changes
-
-### Adding Metrics
-
-Use instrumentation functions:
-- `recordTick(roomId, durationMs)`: Record tick duration
-- `recordMessage(roomId, type)`: Track message counts
-- `recordPatch(roomId, byteCount)`: Monitor patch sizes
-- `recordSlowTick(roomId, durationMs)`: Alert on slow ticks
-
-### Running Tests
-
-```bash
-yarn install  # Install dependencies
-yarn build    # Build TypeScript
-yarn test     # Run Jest tests
+2. Register in room's `onCreate()` tick loop:
+```typescript
+setInterval(() => {
+  const start = performance.now();
+  mySystem(this.world);
+  // other systems...
+  recordTick(this.roomId, performance.now() - start);
+}, 1000/60);
 ```
 
-### Development Workflow
+### Schema State Updates
 
-```bash
-yarn dev      # Start with live reload
-yarn build    # Production build
-yarn start    # Start production server
+1. Update schema class in `src/schemas/MyRoomState.ts`:
+```typescript
+export class Player extends Schema {
+  @type('number') newProperty: number = 0;
+}
 ```
 
-### Load Testing
+2. Generate client types: `yarn schema-codegen`
 
-```bash
-# Build client mock tools first
-cd client && yarn build:mock
+3. Access in systems via `entity.player.newProperty`
 
-# Spawn mock clients
-node client/dist/command/spawn-mock.js --count 200 --interval 1000
+### Voice System Integration
+
+- **Pluggable providers**: `native` (WebRTC), `agora`, `tencent`, `aliyun`, `zego`
+- **Configuration**: Set `window.__RTC_PROVIDER__` and `window.__RTC_APP_ID__` before client init
+- **Token endpoint**: `/rtc/token?channel=global&userId={sessionId}&provider=agora`
+- **Fallback**: Native WebRTC if cloud provider fails
+
+### Message Rate Limiting
+
+All client messages processed through:
+```typescript
+if (!this.actionRateLimiter.attempt(client.sessionId)) {
+  console.warn(`Rate limit exceeded for ${client.sessionId}`);
+  return;
+}
 ```
 
-## Important Notes
+Configure in room constructor: `new RateLimiter(maxActions, perSecond)`
 
-1. **Network Optimization**: 
-   - Keep state minimal
-   - Use binary schema types when possible
-   - Monitor patch sizes via `/metrics.json`
+## Performance & Scaling Considerations
 
-2. **Scaling**:
-   - Enable Redis presence/driver in `src/app.config.ts` for clustering
-   - Use environment variables for configuration
+1. **Tick Performance**: 
+   - Target <5ms average tick time for 60fps
+   - Use `recordSlowTick()` for ticks >16ms  
+   - Profile under load before optimizing
 
-3. **Profiling**:
-   - CPU profiling: `curl -X POST "http://localhost:2567/profile/cpu?durationMs=5000"`
-   - Heap snapshot: `curl -X POST http://localhost:2567/profile/heap`
-   - View in Chrome DevTools or speedscope.app
+2. **Spatial Optimization**:
+   - Spatial partitioning reduces O(n²) collision checks to O(n)
+   - Configure via `initializeSpatialSystem({ maxObjects: 10 })`
 
-4. **Client-Server State Sync**:
-   - Server state changes automatically propagate to clients
-   - Use `getStateCallbacks()` on client to listen for changes
-   - Server is authoritative
+3. **Memory Management**:
+   - Object pooling in security utilities
+   - Sliding window metrics to prevent unbounded growth
+   - Monitor heap via `/profile/heap`
 
-## Common Pitfalls to Avoid
-
-1. Don't mutate state outside of schema properties
-2. Don't perform heavy computations in tick loops without profiling
-3. Don't forget to clean up entities in `onLeave()`
-4. Don't send large messages - use state synchronization
-5. Don't access `this.state` before it's initialized in `onCreate()`
+4. **Horizontal Scaling**:
+   - Set `REDIS_URL` environment variable
+   - Enables Redis presence/driver for multi-server deployments
 
 ## Testing Guidelines
 
-- Write integration tests using `@colyseus/testing`
-- Mock clients should use `ColyseusTestServer`
-- Test room lifecycle: join, message handling, leave
-- Verify state synchronization
-- Test edge cases: rapid joins/leaves, invalid messages
+- **Integration Tests**: Use `@colyseus/testing` with `ColyseusTestServer`
+- **Test Coverage**: All systems have dedicated test files in `src/test/`
+- **Mock Clients**: `client/dist/command/spawn-mock.js` for load testing
+- **Test Patterns**: Room lifecycle, message handling, state synchronization
 
-## Performance Best Practices
+## Common Pitfalls
 
-1. Profile under load before optimization
-2. Use `recordSlowTick()` to identify performance issues
-3. Batch state updates when possible
-4. Minimize allocation in hot paths
-5. Monitor event loop lag via `/metrics`
-
-## References
-
-- [Colyseus Documentation](https://docs.colyseus.io/)
-- [Miniplex ECS Docs](https://miniplex.hmans.co/) (see also `MINIPLEX_DOCS_CN.md` for Chinese docs)
-- [Colyseus Schema](https://docs.colyseus.io/colyseus/state/schema/)
-- Project README: See `README.md` for setup and profiling guides
+1. **State Mutation**: Only mutate properties with `@type()` decorators
+2. **Schema Codegen**: Must run after any schema changes or client breaks
+3. **Entity Cleanup**: Always remove from spatial system in `onLeave()`
+4. **Rate Limiting**: Check rate limits before processing expensive operations
+5. **Performance**: Profile slow ticks under realistic load, not empty rooms

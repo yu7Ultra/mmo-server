@@ -18,6 +18,7 @@ import { updateLeaderboard } from './game/leaderboard';
 import { createUI, setLoading, setupUIHandlers, updatePlayerUI, updateSkillsUI, updateHotbar } from './game/ui';
 import { initVoiceChat } from './game/voice/voiceManager';
 import { initParticleManager } from './game/particles';
+import { getMovementKeys } from './config/movementConfig';
 
 type MonsterVisual = {
     container: Container;
@@ -34,6 +35,20 @@ type MonsterVisual = {
     lastY: number;
     applyFrame: () => void;
     unbinders: Array<() => void>;
+    movement: {
+        x: number;
+        y: number;
+        targetX: number;
+        targetY: number;
+        lerpFromX: number;
+        lerpFromY: number;
+        lerpStart: number;
+        lerpDuration: number;
+        lastServerUpdate: number;
+        velocityX: number;
+        velocityY: number;
+        predicted: boolean;
+    };
 };
 
 // Centralized client configuration via Vite env variables.
@@ -319,7 +334,21 @@ async function main() {
                 lastX: monster.x,
                 lastY: monster.y,
                 applyFrame: () => {},
-                unbinders: []
+                unbinders: [],
+                movement: {
+                    x: monster.x,
+                    y: monster.y,
+                    targetX: monster.x,
+                    targetY: monster.y,
+                    lerpFromX: monster.x,
+                    lerpFromY: monster.y,
+                    lerpStart: performance.now(),
+                    lerpDuration: 120,
+                    lastServerUpdate: performance.now(),
+                    velocityX: 0,
+                    velocityY: 0,
+                    predicted: false
+                }
             };
 
             const computeSheetDirection = (dir: number) => {
@@ -372,7 +401,13 @@ async function main() {
             monsters.set(monsterId, visual);
 
             const unbindX = $$(monster).listen('x', v => {
-                visual.container.x = v;
+                const m = visual.movement;
+                m.lerpFromX = m.x;
+                m.lerpFromY = m.y;
+                m.targetX = v;
+                m.lerpStart = performance.now();
+                m.lastServerUpdate = m.lerpStart;
+                
                 const deltaX = v - visual.lastX;
                 if (Math.abs(deltaX) > 0.1) {
                     visual.dir = deltaX > 0 ? 1 : 3;
@@ -382,7 +417,13 @@ async function main() {
             });
 
             const unbindY = $$(monster).listen('y', v => {
-                visual.container.y = v;
+                const m = visual.movement;
+                m.lerpFromX = m.x;
+                m.lerpFromY = m.y;
+                m.targetY = v;
+                m.lerpStart = performance.now();
+                m.lastServerUpdate = m.lerpStart;
+                
                 const deltaY = v - visual.lastY;
                 if (Math.abs(deltaY) > 0.1) {
                     visual.dir = deltaY > 0 ? 2 : 0;
@@ -518,6 +559,54 @@ async function main() {
                     break;
             }
         });
+        
+        // Listen to server broadcasted basic attacks for visuals
+        room.onMessage('basic_attack', (data: any) => {
+            const { attackerId, targetId, from, to, damage } = data;
+            const attackerVisual = players.get(attackerId);
+            if (!attackerVisual) return;
+            
+            // Create a simple slash effect for basic attack
+            const slashLine = new Graphics();
+            slashLine.lineStyle(2, 0xffffff, 0.8);
+            slashLine.moveTo(from.x, from.y);
+            slashLine.lineTo(to.x, to.y);
+            world.addChild(slashLine);
+            
+            // Remove the slash line after a short duration
+            setTimeout(() => {
+                world.removeChild(slashLine);
+            }, 100);
+            
+            // Show damage number at target position
+            if (damage > 0) {
+                const damageText = new Text({
+                    text: damage.toString(),
+                    style: { fontSize: 16, fill: 0xff0000, fontWeight: 'bold', stroke: { color: 0x000000, width: 2 } }
+                });
+                damageText.anchor.set(0.5);
+                damageText.x = to.x;
+                damageText.y = to.y - 20;
+                world.addChild(damageText);
+                
+                // Animate damage text floating up and fading
+                let frame = 0;
+                const animateDamage = () => {
+                    frame++;
+                    damageText.y -= 1;
+                    damageText.alpha = Math.max(0, 1 - frame / 30);
+                    if (frame < 30) {
+                        requestAnimationFrame(animateDamage);
+                    } else {
+                        world.removeChild(damageText);
+                    }
+                };
+                animateDamage();
+            }
+            
+            // Flash the attacker briefly
+            flashPlayer(attackerVisual, 0xffffff);
+        });
 
         // Leaderboard updates
         $$(room.state).leaderboard.onChange(() => {
@@ -578,35 +667,55 @@ async function main() {
             });
         }
 
-        // Movement controls
+        // Movement controls with configurable keys
         const movement = { x: 0, y: 0 };
-        window.addEventListener("keydown", (e) => {
-            if (e.key === "ArrowLeft") movement.x = -1;
-            if (e.key === "ArrowRight") movement.x = 1;
-            if (e.key === "ArrowUp") movement.y = -1;
-            if (e.key === "ArrowDown") movement.y = 1;
+        const movementKeys = getMovementKeys();
+        
+        // Create a map for quick key lookup
+        const keyMap = new Map<string, { direction: 'x' | 'y', value: number }>([
+            [movementKeys.left, { direction: 'x', value: -1 }],
+            [movementKeys.right, { direction: 'x', value: 1 }],
+            [movementKeys.up, { direction: 'y', value: -1 }],
+            [movementKeys.down, { direction: 'y', value: 1 }]
+        ]);
 
-            const me = players.get(currentPlayerId);
-            if ((movement.x !== 0 || movement.y !== 0) && room && (me?.movement.velocityX !== movement.x || me?.movement.velocityY !== movement.y)) {
-                console.log("Sending move command:", movement);
-                room.send("move", movement);
-                if (me) {
-                    me.movement.velocityX = movement.x;
-                    me.movement.velocityY = movement.y;
+        window.addEventListener("keydown", (e) => {
+            const keyInfo = keyMap.get(e.key.toLowerCase());
+            if (keyInfo) {
+                if (keyInfo.direction === 'x') {
+                    movement.x = keyInfo.value;
+                } else {
+                    movement.y = keyInfo.value;
+                }
+
+                const me = players.get(currentPlayerId);
+                if ((movement.x !== 0 || movement.y !== 0) && room && (me?.movement.velocityX !== movement.x || me?.movement.velocityY !== movement.y)) {
+                    console.log("Sending move command:", movement);
+                    room.send("move", movement);
+                    if (me) {
+                        me.movement.velocityX = movement.x;
+                        me.movement.velocityY = movement.y;
+                    }
                 }
             }
         });
 
         window.addEventListener("keyup", (e) => {
-            if (e.key === "ArrowLeft" || e.key === "ArrowRight") movement.x = 0;
-            if (e.key === "ArrowUp" || e.key === "ArrowDown") movement.y = 0;
+            const keyInfo = keyMap.get(e.key.toLowerCase());
+            if (keyInfo) {
+                if (keyInfo.direction === 'x') {
+                    movement.x = 0;
+                } else {
+                    movement.y = 0;
+                }
 
-            if (movement.x === 0 && movement.y === 0) {
-                room.send("move", { x: 0, y: 0 });
-                const me = players.get(currentPlayerId);
-                if (me) {
-                    me.movement.velocityX = 0;
-                    me.movement.velocityY = 0;
+                if (movement.x === 0 && movement.y === 0) {
+                    room.send("move", { x: 0, y: 0 });
+                    const me = players.get(currentPlayerId);
+                    if (me) {
+                        me.movement.velocityX = 0;
+                        me.movement.velocityY = 0;
+                    }
                 }
             }
         });
@@ -617,18 +726,61 @@ async function main() {
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            // Find clicked player
-            for (const [sessionId, playerVisual] of players.entries()) {
-                if (sessionId === currentPlayerId) continue;
+            const myVisual = players.get(currentPlayerId);
+            if (!myVisual) return;
 
-                const dx = playerVisual.container.x - x;
-                const dy = playerVisual.container.y - y;
+            let targetFound = false;
+
+            // First check for monsters (priority target)
+            for (const [monsterId, monsterVisual] of monsters.entries()) {
+                const dx = monsterVisual.container.x - x;
+                const dy = monsterVisual.container.y - y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                if (distance < 20) {
-                    room.send("attack", { targetId: sessionId });
-                    console.log("Attacking player:", sessionId);
-                    break;
+                if (distance < 32) { // Monster click radius
+                    // Check if in attack range
+                    const distToMonster = Math.sqrt(
+                        Math.pow(myVisual.container.x - monsterVisual.container.x, 2) +
+                        Math.pow(myVisual.container.y - monsterVisual.container.y, 2)
+                    );
+                    
+                    if (distToMonster <= 200) { // Attack range
+                        // Basic attack (no skillId specified)
+                        room.send("attack", { targetId: monsterId });
+                        console.log("Basic attacking monster:", monsterId, "distance:", distToMonster);
+                        targetFound = true;
+                        break;
+                    } else {
+                        console.log("Monster too far:", distToMonster);
+                    }
+                }
+            }
+
+            // If no monster clicked, check for players
+            if (!targetFound) {
+                for (const [sessionId, playerVisual] of players.entries()) {
+                    if (sessionId === currentPlayerId) continue;
+
+                    const dx = playerVisual.container.x - x;
+                    const dy = playerVisual.container.y - y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 20) {
+                        // Check if in attack range
+                        const distToPlayer = Math.sqrt(
+                            Math.pow(myVisual.container.x - playerVisual.container.x, 2) +
+                            Math.pow(myVisual.container.y - playerVisual.container.y, 2)
+                        );
+                        
+                        if (distToPlayer <= 200) { // Attack range
+                            // Basic attack (no skillId specified)
+                            room.send("attack", { targetId: sessionId });
+                            console.log("Basic attacking player:", sessionId, "distance:", distToPlayer);
+                            break;
+                        } else {
+                            console.log("Player too far:", distToPlayer);
+                        }
+                    }
                 }
             }
         });
@@ -650,25 +802,42 @@ async function main() {
                 // Redraw bars (cheap for low entity counts)
                 updateHealthBar(visual);
                 updateManaBar(visual);
-                // Movement interpolation (time-based)
+                // Movement interpolation (time-based) - 优化版本
                 const mv = visual.movement;
                 const now = performance.now();
-                // Adaptive lerpDuration: time since last authoritative update * factor (clamped)
-                const interval = now - mv.lastServerUpdate;
-                mv.lerpDuration = Math.min(180, Math.max(60, interval * 0.9));
-                const elapsed = now - mv.lerpStart;
-                const tRaw = mv.lerpDuration > 0 ? elapsed / mv.lerpDuration : 1;
-                const t = Math.min(1, tRaw);
-                const eased = t < 1 ? 1 - (1 - t) * (1 - t) : 1; // ease-out quad
-                mv.x = mv.lerpFromX + (mv.targetX - mv.lerpFromX) * eased;
-                mv.y = mv.lerpFromY + (mv.targetY - mv.lerpFromY) * eased;
-                // If interpolation finished and we have a velocity, start light prediction until next server update
-                if (t >= 1 && (Math.abs(mv.velocityX) > 0 || Math.abs(mv.velocityY) > 0)) {
-                    mv.predicted = true;
-                    const predictDt = dtMs / 1000;
-                    mv.x += mv.velocityX * predictDt * 180; // approximate speed (tune)
-                    mv.y += mv.velocityY * predictDt * 180;
+                
+                // 只有当目标位置与当前位置有明显差异时才进行插值
+                const distToTarget = Math.sqrt(
+                    Math.pow(mv.targetX - mv.x, 2) +
+                    Math.pow(mv.targetY - mv.y, 2)
+                );
+                
+                if (distToTarget > 0.5) { // 只有距离大于0.5时才插值
+                    // Adaptive lerpDuration: 增加基础时间以减少抽动
+                    const interval = now - mv.lastServerUpdate;
+                    mv.lerpDuration = Math.min(250, Math.max(100, interval * 1.2));
+                    
+                    const elapsed = now - mv.lerpStart;
+                    const tRaw = mv.lerpDuration > 0 ? elapsed / mv.lerpDuration : 1;
+                    const t = Math.min(1, tRaw);
+                    
+                    // 使用更平滑的缓动函数 (cubic ease-out)
+                    const eased = t < 1 ? 1 - Math.pow(1 - t, 3) : 1;
+                    
+                    // 计算新位置
+                    const newX = mv.lerpFromX + (mv.targetX - mv.lerpFromX) * eased;
+                    const newY = mv.lerpFromY + (mv.targetY - mv.lerpFromY) * eased;
+                    
+                    // 平滑更新位置，避免突变
+                    mv.x += (newX - mv.x) * 0.8;
+                    mv.y += (newY - mv.y) * 0.8;
+                    
+                } else {
+                    // 距离很小时直接设置为目标位置
+                    mv.x = mv.targetX;
+                    mv.y = mv.targetY;
                 }
+                
                 visual.container.x = mv.x;
                 visual.container.y = mv.y;
             });
@@ -740,8 +909,48 @@ async function main() {
                 }
             });
 
-            // Update monster animations
+            // Update monster animations and movement interpolation
             monsters.forEach((visual) => {
+                // Movement interpolation (time-based) - 优化版本
+                const mv = visual.movement;
+                const now = performance.now();
+                
+                // 只有当目标位置与当前位置有明显差异时才进行插值
+                const distToTarget = Math.sqrt(
+                    Math.pow(mv.targetX - mv.x, 2) +
+                    Math.pow(mv.targetY - mv.y, 2)
+                );
+                
+                if (distToTarget > 0.5) { // 只有距离大于0.5时才插值
+                    // Adaptive lerpDuration: 增加基础时间以减少抽动
+                    const interval = now - mv.lastServerUpdate;
+                    mv.lerpDuration = Math.min(250, Math.max(100, interval * 1.2));
+                    
+                    const elapsed = now - mv.lerpStart;
+                    const tRaw = mv.lerpDuration > 0 ? elapsed / mv.lerpDuration : 1;
+                    const t = Math.min(1, tRaw);
+                    
+                    // 使用更平滑的缓动函数 (cubic ease-out)
+                    const eased = t < 1 ? 1 - Math.pow(1 - t, 3) : 1;
+                    
+                    // 计算新位置
+                    const newX = mv.lerpFromX + (mv.targetX - mv.lerpFromX) * eased;
+                    const newY = mv.lerpFromY + (mv.targetY - mv.lerpFromY) * eased;
+                    
+                    // 平滑更新位置，避免突变
+                    mv.x += (newX - mv.x) * 0.8;
+                    mv.y += (newY - mv.y) * 0.8;
+                    
+                } else {
+                    // 距离很小时直接设置为目标位置
+                    mv.x = mv.targetX;
+                    mv.y = mv.targetY;
+                }
+                
+                visual.container.x = mv.x;
+                visual.container.y = mv.y;
+                
+                // Animation
                 if (!visual.placeholder) {
                     visual.animElapsed += dtMs;
                     if (visual.animElapsed >= 200) {

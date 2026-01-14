@@ -3,6 +3,7 @@ import { Entity } from '../entities';
 import { configManager } from '../config/configManager';
 import { MonstersConfig, MonsterConfig, MonsterState } from '../config/monsterConfig';
 import * as prom from '../instrumentation/prometheusMetrics';
+import { getSpatialSystem } from './spatialPartitioningSystem';
 
 /**
  * Monster configuration cache
@@ -115,8 +116,30 @@ function handleIdleState(
 ): void {
   const monster = entity.monster!;
   
-  // Check for nearby players
-  const target = findNearestPlayer(entity, world, config.stats.detectionRange);
+  // Check for nearby players using spatial partitioning if available
+  let target: Entity | undefined;
+  
+  const spatial = getSpatialSystem();
+  if (spatial && entity.position) {
+    // Use quadtree for efficient spatial query
+    const nearbyResults = spatial.queryByType(
+      entity.position.x,
+      entity.position.y,
+      config.stats.detectionRange,
+      'player'
+    );
+    
+    // Find closest player entity
+    if (nearbyResults.length > 0) {
+      // Results are already sorted by distance from queryByType
+      const closestResult = nearbyResults[0];
+      // The entity.entity is the original Entity object
+      target = closestResult.entity.entity as Entity;
+    }
+  } else {
+    // Fallback to linear search
+    target = findNearestPlayer(entity, world, config.stats.detectionRange);
+  }
   
   if (target && config.ai.behavior === 'aggressive') {
     // Transition to chase
@@ -148,8 +171,26 @@ function handlePatrolState(
 ): void {
   const monster = entity.monster!;
   
-  // Check for nearby players
-  const target = findNearestPlayer(entity, world, config.stats.detectionRange);
+  // Check for nearby players using spatial partitioning if available
+  let target: Entity | undefined;
+  
+  const spatial = getSpatialSystem();
+  if (spatial && entity.position) {
+    // Use quadtree for efficient spatial query
+    const nearbyResults = spatial.queryByType(
+      entity.position.x,
+      entity.position.y,
+      config.stats.detectionRange,
+      'player'
+    );
+    
+    if (nearbyResults.length > 0) {
+      target = nearbyResults[0].entity.entity as Entity;
+    }
+  } else {
+    // Fallback to linear search
+    target = findNearestPlayer(entity, world, config.stats.detectionRange);
+  }
   
   if (target && config.ai.behavior === 'aggressive') {
     // Transition to chase
@@ -179,7 +220,10 @@ function handleChaseState(
   const target = world.entities.find(e => e.sessionId === monster.targetId);
   
   if (!target || !target.player) {
-    // Lost target, return to spawn
+    // Lost target, return to spawn and clear combat flag
+    if (target?.player) {
+      target.player.inCombat = false;
+    }
     monster.state = MonsterState.RETURN;
     monster.targetId = undefined;
     return;
@@ -189,6 +233,7 @@ function handleChaseState(
   
   // Check if out of chase range
   if (distance > config.stats.chaseRange) {
+    target.player.inCombat = false;
     monster.state = MonsterState.RETURN;
     monster.targetId = undefined;
     return;
@@ -239,23 +284,28 @@ function handleAttackState(
   const damage = calculateDamage(config.stats.attack, target.player.defense);
   target.player.health = Math.max(0, target.player.health - damage);
   target.player.damageTaken += damage;
+  target.player.inCombat = true; // Set combat flag to prevent regeneration
   monster.lastAttackTime = now;
   
   // Record metrics
   prom.recordCombat('pve');
   prom.recordDamage('monster_' + config.id, damage);
   
+  // Check if target is dead
+  if (target.player.health <= 0) {
+    target.player.health = 0;
+    target.player.inCombat = false;
+    monster.state = MonsterState.RETURN;
+    monster.targetId = undefined;
+    // TODO: Handle player death (respawn, etc.)
+    return;
+  }
+  
   // Check if should flee
   const healthPercent = monster.health / config.stats.maxHealth;
   if (healthPercent <= config.ai.fleeHealthPercent && config.ai.fleeHealthPercent > 0) {
     monster.state = MonsterState.FLEE;
     return;
-  }
-  
-  // Check if target is dead
-  if (target.player.health <= 0) {
-    monster.state = MonsterState.RETURN;
-    monster.targetId = undefined;
   }
 }
 

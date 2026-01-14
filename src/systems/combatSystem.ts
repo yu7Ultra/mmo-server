@@ -1,5 +1,6 @@
 import { World } from 'miniplex';
 import { Entity } from '../entities';
+import { MonsterState } from '../config/monsterConfig';
 import * as prom from '../instrumentation/prometheusMetrics';
 
 /**
@@ -12,8 +13,16 @@ export const combatSystem = (world: World<Entity>, deltaTime: number = 16.67) =>
   for (const entity of combatEntities) {
     const { combatTarget, lastAttackTime = 0, player, position } = entity;
     
-    if (!combatTarget || !combatTarget.player) {
+    if (!combatTarget || (!combatTarget.player && !combatTarget.monster)) {
       // Target no longer valid
+      entity.combatTarget = undefined;
+      entity.player.inCombat = false;
+      entity.player.targetId = '';
+      continue;
+    }
+    
+    // Skip if target is dead
+    if (combatTarget.monster?.state === 'dead' || combatTarget.player?.health <= 0) {
       entity.combatTarget = undefined;
       entity.player.inCombat = false;
       entity.player.targetId = '';
@@ -39,29 +48,123 @@ export const combatSystem = (world: World<Entity>, deltaTime: number = 16.67) =>
       continue;
     }
     
-    // Perform attack
-    const damage = calculateDamage(player.attack, combatTarget.player.defense);
+    // Get target defense
+    let targetDefense = 0;
+    if (combatTarget.monster) {
+      targetDefense = 0; // Monsters don't have defense in config yet, TODO: add to monster stats
+    } else if (combatTarget.player) {
+      targetDefense = combatTarget.player.defense;
+    }
     
-    // Apply damage
-    combatTarget.player.health = Math.max(0, combatTarget.player.health - damage);
+    // Perform basic attack
+    const damage = calculateDamage(player.attack, targetDefense);
     
-    // Track stats
-    player.damageDealt += damage;
-    combatTarget.player.damageTaken += damage;
+    // Apply damage to monster or player
+    if (combatTarget.monster) {
+      combatTarget.monster.health = Math.max(0, combatTarget.monster.health - damage);
+      player.damageDealt += damage;
+      
+      // Check if monster is dead
+      if (combatTarget.monster.health <= 0) {
+        combatTarget.monster.state = MonsterState.DEAD;
+        combatTarget.monster.deathTime = now;
+        handleKill(entity, combatTarget);
+      }
+    } else if (combatTarget.player) {
+      combatTarget.player.health = Math.max(0, combatTarget.player.health - damage);
+      player.damageDealt += damage;
+      combatTarget.player.damageTaken += damage;
+      
+      // Check if player is dead
+      if (combatTarget.player.health <= 0) {
+        combatTarget.player.health = 0;
+        handleKill(entity, combatTarget);
+      }
+    }
     
     // Record Prometheus metrics
     prom.recordDamage('basic_attack', damage);
-    prom.recordCombat('pvp'); // Assuming all combat is PvP for now
+    prom.recordCombat(combatTarget.monster ? 'pve' : 'pvp');
     
     // Update attack time
     entity.lastAttackTime = now;
-    
-    // Check if target is dead
-    if (combatTarget.player.health <= 0) {
-      handleKill(entity, combatTarget);
-    }
   }
 };
+
+/**
+ * Perform a basic attack on a target
+ * This is the main function for basic attacks (普攻)
+ */
+export function performBasicAttack(attacker: Entity, target: Entity): boolean {
+  if (!attacker.player || !target) return false;
+  
+  // Check if target is valid
+  if (!target.player && !target.monster) return false;
+  
+  // Skip if target is dead
+  if (target.monster?.state === 'dead' || target.player?.health <= 0) return false;
+  
+  // Check if target is in range
+  const dx = attacker.position.x - target.position.x;
+  const dy = attacker.position.y - target.position.y;
+  const distanceSquared = dx * dx + dy * dy;
+  const attackRangeSquared = 50 * 50; // 50 pixel attack range
+  
+  if (distanceSquared > attackRangeSquared) {
+    return false; // Target out of range
+  }
+  
+  // Check attack cooldown
+  const attackCooldown = 1000 / (attacker.player.speed / 10); // attacks per second
+  const now = Date.now();
+  
+  if (now - (attacker.lastAttackTime || 0) < attackCooldown) {
+    return false; // Attack on cooldown
+  }
+  
+  // Get target defense
+  let targetDefense = 0;
+  if (target.monster) {
+    targetDefense = 0; // Monsters don't have defense in config yet
+  } else if (target.player) {
+    targetDefense = target.player.defense;
+  }
+  
+  // Perform attack
+  const damage = calculateDamage(attacker.player.attack, targetDefense);
+  
+  // Apply damage to monster or player
+  if (target.monster) {
+    target.monster.health = Math.max(0, target.monster.health - damage);
+    attacker.player.damageDealt += damage;
+    
+    // Check if monster is dead
+    if (target.monster.health <= 0) {
+      target.monster.state = MonsterState.DEAD;
+      target.monster.deathTime = now;
+      handleKill(attacker, target);
+    }
+  } else if (target.player) {
+    target.player.health = Math.max(0, target.player.health - damage);
+    attacker.player.damageDealt += damage;
+    target.player.damageTaken += damage;
+    
+    // Check if player is dead
+    if (target.player.health <= 0) {
+      target.player.health = 0;
+      handleKill(attacker, target);
+    }
+  }
+  
+  // Record Prometheus metrics
+  prom.recordDamage('basic_attack', damage);
+  prom.recordCombat(target.monster ? 'pve' : 'pvp');
+  
+  // Update attack time
+  attacker.lastAttackTime = now;
+  
+  return true; // Attack successful
+}
 
 /**
  * Calculate damage with defense mitigation
